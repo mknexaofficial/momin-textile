@@ -47,8 +47,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-hei
 .sc:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .sc-ic{font-size:26px}
 .sc-l{font-size:10px;color:var(--tm);text-transform:uppercase;font-weight:600;letter-spacing:.6px;margin-bottom:4px}
-.sc-v{font-size:22px;font-weight:800}
-.sc.green .sc-v{color:var(--suc)}.sc.red .sc-v{color:var(--dan)}.sc.gold .sc-v{color:var(--gol)}
+.sc-v{font-size:22px;font-weight:800;color:var(--tx)}
+.sc.green .sc-v{color:var(--suc)!important}.sc.red .sc-v{color:var(--dan)!important}.sc.gold .sc-v{color:var(--gol)!important}
+.fhint{font-size:11px;color:var(--tm);margin-top:5px}
 /* CARD */
 .card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
 .ch{padding:14px 18px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
@@ -125,7 +126,10 @@ select.fi option{background:var(--bg2)}
 }
 @media(max-width:420px){
   .stats{grid-template-columns:1fr}
-  .sc-v{font-size:20px}
+  .sc-v{font-size:18px}
+  .sc{padding:14px 12px}
+  .sc-ic{font-size:22px}
+  .cnt{padding:10px 10px 80px}
 }
 /* BOTTOM NAV (mobile only) */
 .bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--brd);z-index:200;padding:0}
@@ -442,17 +446,7 @@ select.fi option{background:var(--bg2)}
       </div>
     </div>
 
-    <div class="card" style="max-width:520px">
-      <div class="ch"><h3>📖 Setup Guide</h3></div>
-      <div class="cb" style="line-height:2.2;font-size:13px;color:var(--tm)">
-        <p><b style="color:var(--gol)">Step 1:</b> Google Sheet banao, ek tab ka naam rakho: <code style="background:var(--bg3);padding:2px 8px;border-radius:4px;color:var(--tx)">SuthStock</code></p>
-        <p><b style="color:var(--gol)">Step 2:</b> Extensions → Apps Script → Code.gs paste karo → Save</p>
-        <p><b style="color:var(--gol)">Step 3:</b> Deploy → New Deployment → Web App</p>
-        <p><b style="color:var(--gol)">Step 4:</b> "Execute as: Me" aur "Who has access: Anyone" set karo</p>
-        <p><b style="color:var(--gol)">Step 5:</b> URL copy karo → upar paste karo → Save Settings dabao</p>
-        <p><b style="color:var(--gol)">Step 6:</b> 🎉 Done! Suth ka data Google Sheets mein save hoga</p>
-      </div>
-    </div>
+
   </div>
 
   </div><!-- /cnt -->
