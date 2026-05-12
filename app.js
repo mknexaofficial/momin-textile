@@ -1,7 +1,9 @@
 // ================================================================
 // Momin Textile — Suth Manager (app.js)
-// Focus: Suth stock In/Out ledger + Calculator
 // ================================================================
+
+// ✅ HARDCODED API URL — har device par automatically kaam karega
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxSNaV_vuIzjCSNMc-7tLZwc_x45S7litAXYKtwUDO-snkgZUPKOYruSw-gK-RBGa1Tgw/exec';
 
 let API = '', suthRecords = [], suthTotalIn = 0, suthTotalOut = 0, suthAvailable = 0, charts = {};
 
@@ -103,15 +105,15 @@ function doLogout() {
 
 // ===== SETTINGS =====
 function loadSettings() {
-  API = localStorage.getItem('mt_api') || '';
-  const u = document.getElementById('settApiUrl'); if (u) u.value = API;
+  // Settings mein override ho to woh use karo, warna DEFAULT_API use karo
+  const saved = localStorage.getItem('mt_api') || '';
+  API = saved.trim() || DEFAULT_API;
+  const u = document.getElementById('settApiUrl'); if (u) u.value = saved;
   const company = localStorage.getItem('mt_company') || 'Momin Textile';
   const c = document.getElementById('settCompany'); if (c) c.value = company;
   const t = localStorage.getItem('mt_theme') || 'dark';
   if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
-  // Apply logo everywhere
   applyLogo();
-  // Apply company name in sidebar
   const sc = document.getElementById('sidebarCompany'); if (sc) sc.textContent = company;
 }
 
@@ -271,7 +273,7 @@ function renderSuthLedger() {
 
   const tbody = document.getElementById('suthTable');
   if (!suthRecords.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tm)">Koi record nahi — pehle suth entry karein</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">Koi record nahi — pehle suth entry karein</td></tr>';
     return;
   }
 
@@ -280,6 +282,7 @@ function renderSuthLedger() {
   const sorted = [...suthRecords].sort((a, b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
     running += r.type === 'in' ? r.qty : -r.qty;
+    const bal = running;
     return `<tr>
       <td>${r.date}</td>
       <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
@@ -287,10 +290,22 @@ function renderSuthLedger() {
       <td>${r.party || '—'}</td>
       <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
       <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
-      <td><b style="color:${running >= 0 ? 'var(--suc)' : 'var(--dan)'}">${running.toFixed(3)} kg</b></td>
+      <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(3)} kg</b></td>
+      <td><button onclick="deleteSuthRecord('${r.id}','${r.qty} kg','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
     </tr>`;
   });
   tbody.innerHTML = rows.reverse().join(''); // newest first
+}
+
+async function deleteSuthRecord(id, qtyLabel, type) {
+  if (!confirm(`⚠️ Delete karna chahte hain?\n${type === 'in' ? 'Entry' : 'Exit'}: ${qtyLabel}\n\nYe action Google Sheet se bhi delete karega!`)) return;
+  const res = await api('deleteSuthRecord', { id });
+  if (res && res.success) {
+    toast(`✅ Record deleted!`, 'success');
+    refreshData();
+  } else {
+    toast(res ? res.error : 'Delete failed', 'error');
+  }
 }
 
 function updateAvailInfo() {
