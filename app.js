@@ -18,6 +18,76 @@ window.onload = () => {
   refreshData();
 };
 
+// ===== NAVIGATION + BACK BUTTON =====
+const PAGES = {
+  'dash':       'Dashboard',
+  'suth-stock': 'Suth Ledger',
+  'suth':       'Suth Calculator',
+  'settings':   'Settings'
+};
+
+let currentPage = 'dash';
+
+function showPage(id, pushHistory = true) {
+  // Hide all pages
+  document.querySelectorAll('.pg').forEach(p => {
+    p.style.display = 'none';
+    p.classList.remove('active');
+  });
+
+  // Show target page with animation
+  const pg = document.getElementById('pg-' + id);
+  if (pg) {
+    pg.style.display = 'block';
+    // Force reflow then add animation class
+    void pg.offsetWidth;
+    pg.classList.add('active');
+  }
+
+  // Update title
+  const t = document.getElementById('pageTitle');
+  if (t) t.textContent = PAGES[id] || id;
+
+  // Update nav active state — sidebar
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const sn = document.getElementById('nav-' + id);
+  if (sn) sn.classList.add('active');
+
+  // Update bottom nav
+  document.querySelectorAll('.bn').forEach(b => b.classList.remove('active'));
+  const bn = document.getElementById('bn-' + id);
+  if (bn) bn.classList.add('active');
+
+  // Close sidebar on mobile
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('overlay');
+  if (sb && window.innerWidth <= 768) {
+    sb.classList.remove('open');
+    if (ov) ov.style.display = 'none';
+  }
+
+  // History API — enables browser/Android back button
+  if (pushHistory) {
+    history.pushState({ page: id }, '', '#' + id);
+  }
+
+  currentPage = id;
+}
+
+// Handle browser back/forward button
+window.addEventListener('popstate', (e) => {
+  const page = (e.state && e.state.page) || 'dash';
+  showPage(page, false); // false = don't push again
+});
+
+// ===== MULTI-DEVICE: Auto-refresh when tab becomes visible =====
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    // User switched back to this tab/app — refresh data silently
+    refreshData();
+  }
+});
+
 // ===== PIN + SESSION =====
 const SESSION_KEY = 'mt_session';
 const SESSION_HOURS = 12; // auto-logout after 12 hours
@@ -105,10 +175,8 @@ function doLogout() {
 
 // ===== SETTINGS =====
 function loadSettings() {
-  // Settings mein override ho to woh use karo, warna DEFAULT_API use karo
-  const saved = localStorage.getItem('mt_api') || '';
-  API = saved.trim() || DEFAULT_API;
-  const u = document.getElementById('settApiUrl'); if (u) u.value = saved;
+  // API always uses DEFAULT (hardcoded) — no user input needed
+  API = DEFAULT_API;
   const company = localStorage.getItem('mt_company') || 'Momin Textile';
   const c = document.getElementById('settCompany'); if (c) c.value = company;
   const t = localStorage.getItem('mt_theme') || 'dark';
@@ -291,22 +359,34 @@ function renderSuthLedger() {
       <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
       <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
       <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(3)} kg</b></td>
-      <td><button onclick="deleteSuthRecord('${r.id}','${r.qty} kg','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
+      <td><button onclick="showDeleteModal('${r.id}','${r.qty.toFixed(3)} kg','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
     </tr>`;
   });
   tbody.innerHTML = rows.reverse().join(''); // newest first
 }
 
-async function deleteSuthRecord(id, qtyLabel, type) {
-  if (!confirm(`⚠️ Delete karna chahte hain?\n${type === 'in' ? 'Entry' : 'Exit'}: ${qtyLabel}\n\nYe action Google Sheet se bhi delete karega!`)) return;
-  const res = await api('deleteSuthRecord', { id });
-  if (res && res.success) {
-    toast(`✅ Record deleted!`, 'success');
-    refreshData();
-  } else {
-    toast(res ? res.error : 'Delete failed', 'error');
-  }
+// ===== CUSTOM CONFIRM MODAL =====
+function showDeleteModal(id, qtyLabel, type) {
+  const modal = document.getElementById('deleteModal');
+  document.getElementById('delModalTitle').textContent =
+    (type === 'in' ? '⬆️ Entry' : '⬇️ Exit') + ' delete karna chahte hain?';
+  document.getElementById('delModalDetail').textContent =
+    'Qty: ' + qtyLabel + ' — Google Sheet se bhi hata diya jaayega!';
+  modal.style.display = 'flex';
+  // Confirm button
+  document.getElementById('delConfirmBtn').onclick = async () => {
+    modal.style.display = 'none';
+    const res = await api('deleteSuthRecord', { id });
+    if (res && res.success) {
+      toast('✅ Record delete ho gaya!', 'success');
+      refreshData();
+    } else {
+      toast(res ? res.error : 'Delete nahi hua — API check karein', 'error');
+    }
+  };
+  document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
 }
+
 
 function updateAvailInfo() {
   const el = document.getElementById('soAvailInfo');
