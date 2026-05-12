@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Momin Textile">
+<meta name="theme-color" content="#0d1b2a">
+<title>Momin Textile — Suth Manager</title>
+<meta name="description" content="Momin Textile Mill — Suth stock management system">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root{--bg:#0d1b2a;--bg2:#162032;--bg3:#1e2d42;--gold:#c9a84c;--gol:#e2c06b;--tm:#8a9bb5;--tx:#e8edf5;--brd:#243652;--dan:#e05260;--suc:#2ec08b;--war:#f0a429;--r:10px}
+[data-theme=light]{--bg:#f0f4fa;--bg2:#fff;--bg3:#e8edf6;--tm:#5a6a85;--tx:#0d1b2a;--brd:#d0daea}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--brd);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:.25s}
+.slogo{padding:20px 16px 16px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:12px}
+.slogo-ic{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#a07830);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.slogo h2{font-size:13px;font-weight:700;color:var(--gol);line-height:1.3}
+.slogo span{font-size:10px;color:var(--tm)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;margin:3px 8px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--tm);transition:.2s}
+.nav-item:hover{background:var(--bg3);color:var(--tx)}
+.nav-item.active{background:rgba(201,168,76,.15);color:var(--gol);border:1px solid rgba(201,168,76,.2)}
+.nav-item .ni{font-size:17px;width:22px;text-align:center}
+.sfooter{margin-top:auto;padding:14px;border-top:1px solid var(--brd)}
+.tgl{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--tm);font-size:12px}
+.tgl:hover{background:var(--bg3)}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--brd);padding:0 24px;height:58px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:16px;font-weight:700;flex:1}
+#clock{font-size:11px;color:var(--tm)}
+.menbtn{display:none;background:none;border:none;color:var(--tx);font-size:20px;cursor:pointer;padding:4px 8px}
+.cnt{padding:22px 26px}
+.ofbar{background:var(--war);color:#0d1b2a;text-align:center;padding:6px;font-size:12px;font-weight:600;display:none}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.sc{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:18px;display:flex;align-items:center;gap:14px;transition:.2s}
+.sc:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.sc-ic{font-size:26px}
+.sc-l{font-size:10px;color:var(--tm);text-transform:uppercase;font-weight:600;letter-spacing:.6px;margin-bottom:4px}
+.sc-v{font-size:22px;font-weight:800}
+.sc.green .sc-v{color:var(--suc)}.sc.red .sc-v{color:var(--dan)}.sc.gold .sc-v{color:var(--gol)}
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
+.ch{padding:14px 18px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
+.ch h3{font-size:14px;font-weight:700}
+.cb{padding:18px}
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--bg3);color:var(--tm);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;padding:10px 14px;text-align:left;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--brd);transition:.15s}
+tbody tr:hover{background:rgba(201,168,76,.04)}
+td{padding:10px 14px;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.bg{background:rgba(46,192,139,.15);color:var(--suc)}.br{background:rgba(224,82,96,.15);color:var(--dan)}
+/* FORM */
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fg label{font-size:11px;font-weight:600;color:var(--tm);text-transform:uppercase;letter-spacing:.5px}
+.fi{background:var(--bg3);border:1px solid var(--brd);color:var(--tx);padding:10px 13px;border-radius:7px;font-size:14px;font-family:inherit;width:100%;transition:.2s}
+.fi:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+.fi:read-only{opacity:.6;cursor:not-allowed}
+select.fi option{background:var(--bg2)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.infoline{font-size:12px;color:var(--gol);padding:8px 12px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:7px;margin-bottom:12px}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:.2s}
+.bp{background:linear-gradient(135deg,var(--gold),#a07830);color:#0d1b2a}
+.bp:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,.35)}
+.bd{background:linear-gradient(135deg,var(--dan),#a02030);color:#fff}
+.bd:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(224,82,96,.35)}
+.bg2b{background:transparent;border:1px solid var(--brd);color:var(--tm)}
+.bg2b:hover{border-color:var(--gold);color:var(--gol)}
+.bsm{padding:6px 13px;font-size:12px}
+.brow{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--brd);justify-content:flex-end}
+/* SUTH RESULT */
+.suth-result{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.sr{background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:16px;text-align:center}
+.sr-l{font-size:10px;color:var(--tm);text-transform:uppercase;font-weight:600;margin-bottom:6px}
+.sr-v{font-size:20px;font-weight:800;color:var(--gol)}
+/* CHART */
+.cwrap{height:220px;position:relative}
+/* PAGE */
+.pg{display:none}
+/* FEED */
+.feed-row td:first-child{color:var(--tm);font-size:12px;white-space:nowrap}
+/* TOAST */
+.toasts{position:fixed;bottom:22px;right:22px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:12px 16px;font-size:13.5px;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:slin .3s ease;max-width:300px}
+.toast.success{border-left:4px solid var(--suc)}.toast.error{border-left:4px solid var(--dan)}
+@keyframes slin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);width:240px}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 30px rgba(0,0,0,.5)}
+  .main{margin-left:0}
+  .menbtn{display:block}
+  .frow{grid-template-columns:1fr}
+  .cnt{padding:14px 14px 80px}
+  .stats{grid-template-columns:1fr 1fr}
+  .suth-result{grid-template-columns:1fr}
+  /* Entry/Exit forms stack on mobile */
+  #pg-suth-stock > div[style*='grid-template-columns:1fr 1fr']{grid-template-columns:1fr!important}
+  /* Charts stack */
+  #pg-dash > div[style*='grid-template-columns:1fr 1fr']{grid-template-columns:1fr!important}
+  /* Bottom nav bar for mobile */
+  .bnav{display:flex}
+  .topbar{padding:0 14px;height:52px}
+  table{font-size:12px}
+  thead th,td{padding:8px 10px}
+  .btn{padding:10px 16px;font-size:14px}
+  .fi{padding:11px 13px;font-size:15px}
+}
+@media(max-width:420px){
+  .stats{grid-template-columns:1fr}
+  .sc-v{font-size:20px}
+}
+/* BOTTOM NAV (mobile only) */
+.bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--brd);z-index:200;padding:0}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;cursor:pointer;color:var(--tm);font-size:10px;gap:3px;transition:.2s;border:none;background:none;font-family:inherit}
+.bn .bni{font-size:22px}
+.bn.active{color:var(--gol)}
+.bn:active{background:var(--bg3)}
+
+/* ===== PIN LOCK SCREEN ===== */
+#pinScreen{
+  position:fixed;inset:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#060f1a 0%,#0d1b2a 40%,#1a0a2e 100%);
+  overflow:hidden;
+}
+/* animated background orbs */
+#pinScreen::before,#pinScreen::after{
+  content:'';position:absolute;border-radius:50%;filter:blur(80px);opacity:.35;animation:orb 8s ease-in-out infinite alternate;
+}
+#pinScreen::before{width:400px;height:400px;background:radial-gradient(circle,#c9a84c,transparent);top:-100px;left:-100px;}
+#pinScreen::after{width:350px;height:350px;background:radial-gradient(circle,#4a2080,transparent);bottom:-80px;right:-80px;animation-delay:-4s;}
+@keyframes orb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.15) translate(30px,20px)}}
+
+.pin-box{
+  position:relative;z-index:1;
+  background:rgba(22,32,50,.75);backdrop-filter:blur(24px);
+  border:1px solid rgba(201,168,76,.2);
+  border-radius:24px;padding:40px 36px;
+  width:100%;max-width:380px;
+  text-align:center;
+  box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.07);
+  animation:pinIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pinIn{from{opacity:0;transform:scale(.85) translateY(30px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+.pin-logo{
+  width:80px;height:80px;border-radius:22px;margin:0 auto 18px;
+  background:linear-gradient(135deg,var(--gold),#a07830);
+  display:flex;align-items:center;justify-content:center;font-size:40px;
+  overflow:hidden;box-shadow:0 8px 30px rgba(201,168,76,.4);
+}
+.pin-logo img{width:100%;height:100%;object-fit:cover;border-radius:20px}
+.pin-company{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;letter-spacing:-.3px}
+.pin-sub{font-size:12px;color:rgba(255,255,255,.45);margin-bottom:32px;letter-spacing:.3px}
+
+/* Dots */
+.pin-dots{display:flex;justify-content:center;gap:16px;margin-bottom:10px}
+.pin-dot{
+  width:16px;height:16px;border-radius:50%;
+  background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);
+  transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.pin-dot.filled{
+  background:var(--gold);border-color:var(--gold);
+  transform:scale(1.2);box-shadow:0 0 12px rgba(201,168,76,.6);
+}
+.pin-err{color:#ff6b7a;font-size:13px;min-height:22px;margin-bottom:20px;font-weight:500}
+
+/* PIN input field */
+.pin-input-wrap{
+  position:relative;cursor:text;
+  background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.15);
+  border-radius:14px;padding:16px 20px;
+  display:flex;align-items:center;justify-content:center;
+  gap:20px;transition:.2s;
+}
+.pin-input-wrap:focus-within{border-color:rgba(201,168,76,.6);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+.pin-char{
+  width:12px;height:12px;border-radius:50%;
+  background:rgba(255,255,255,.15);transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.pin-char.on{background:var(--gold);transform:scale(1.3);box-shadow:0 0 10px rgba(201,168,76,.7)}
+.pin-real{
+  position:absolute;inset:0;opacity:0;width:100%;height:100%;
+  cursor:text;font-size:16px;
+  -webkit-tap-highlight-color:transparent;
+}
+.pin-hint{font-size:11px;color:rgba(255,255,255,.28);margin-top:20px;letter-spacing:.3px}
+
+/* LOGO in sidebar */
+.slogo-img{width:40px;height:40px;border-radius:10px;object-fit:cover}
+/* LOGO upload preview */
+.logo-preview{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--gold),#a07830);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;margin-bottom:10px;border:2px solid var(--brd)}
+.logo-preview img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+
+</style>
+</head>
+<body>
+
+<div class="ofbar" id="offlineBar">⚠️ Offline Mode — Settings mein API URL check karein</div>
+
+<!-- ===== PIN LOCK SCREEN ===== -->
+<div id="pinScreen">
+  <div class="pin-box" id="pinBox">
+
+    <div class="pin-logo" id="pinLogo">🧵</div>
+    <div class="pin-company" id="pinCompany">Momin Textile</div>
+    <div class="pin-sub">Apna PIN enter karein</div>
+
+    <!-- ONE set of dots inside the clickable input area -->
+    <div class="pin-input-wrap" onclick="this.querySelector('.pin-real').focus()">
+      <div class="pin-char" id="pc0"></div>
+      <div class="pin-char" id="pc1"></div>
+      <div class="pin-char" id="pc2"></div>
+      <div class="pin-char" id="pc3"></div>
+      <input class="pin-real" id="pinReal"
+        type="tel" inputmode="numeric" pattern="[0-9]*"
+        maxlength="4" autocomplete="off"
+        oninput="onPinInput(this)">
+    </div>
+
+    <div class="pin-err" id="pinErr"></div>
+    <div class="pin-hint">📱 Mobile: upar tap karein &nbsp;·&nbsp; 🖥️ Desktop: seedha type karein</div>
+  </div>
+</div>
+
+<div class="app">
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="slogo">
+    <div class="slogo-ic" id="sidebarLogoWrap">🧵</div>
+    <div><h2 id="sidebarCompany">Momin Textile</h2><span>Suth Manager</span></div>
+  </div>
+  <div style="padding:12px 8px 0">
+    <div class="nav-item active" id="nav-dash" onclick="showPage('dash')"><span class="ni">📊</span> Dashboard</div>
+    <div class="nav-item" id="nav-suth-stock" onclick="showPage('suth-stock')"><span class="ni">🧵</span> Suth Ledger</div>
+    <div class="nav-item" id="nav-suth" onclick="showPage('suth')"><span class="ni">🧮</span> Suth Calculator</div>
+    <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><span class="ni">⚙️</span> Settings</div>
+  </div>
+  <div class="sfooter">
+    <div class="tgl" onclick="toggleTheme()"><span id="themeIcon">🌙</span> Toggle Theme</div>
+  </div>
+</aside>
+
+<div id="overlay" onclick="toggleSB()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99"></div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <div class="topbar">
+    <button class="menbtn" onclick="toggleSB()">☰</button>
+    <h1 id="pageTitle">Dashboard</h1>
+    <span id="clock"></span>
+    <button class="btn bg2b bsm" onclick="refreshData()">🔄 Sync</button>
+  </div>
+
+  <div class="cnt">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="pg" id="pg-dash">
+    <div class="stats">
+      <div class="sc green">
+        <span class="sc-ic">⬆️</span>
+        <div><div class="sc-l">Total Suth Aaya (kg)</div><div class="sc-v" id="dIn">0</div></div>
+      </div>
+      <div class="sc red">
+        <span class="sc-ic">⬇️</span>
+        <div><div class="sc-l">Total Suth Gaya (kg)</div><div class="sc-v" id="dOut">0</div></div>
+      </div>
+      <div class="sc gold">
+        <span class="sc-ic">🧵</span>
+        <div><div class="sc-l">Baaki Suth Available</div><div class="sc-v" id="dAvail">0</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="card">
+        <div class="ch"><h3>📈 Suth Movement (Last 6 Months)</h3></div>
+        <div class="cb"><div class="cwrap"><canvas id="cBar"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ch"><h3>📋 Aakhri 10 Entries</h3></div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Date</th><th>Type</th><th>Qty (kg)</th><th>Party</th><th>Balance</th></tr></thead>
+            <tbody id="feed"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SUTH LEDGER ===== -->
+  <div class="pg" id="pg-suth-stock">
+
+    <!-- Summary -->
+    <div class="stats" style="margin-bottom:18px">
+      <div class="sc green"><span class="sc-ic">⬆️</span><div><div class="sc-l">Total In (kg)</div><div class="sc-v" id="ssIn">0.000</div></div></div>
+      <div class="sc red"><span class="sc-ic">⬇️</span><div><div class="sc-l">Total Out (kg)</div><div class="sc-v" id="ssOut">0.000</div></div></div>
+      <div class="sc gold"><span class="sc-ic">🧵</span><div><div class="sc-l">Available (kg)</div><div class="sc-v" id="ssAvail">0.000</div></div></div>
+    </div>
+
+    <!-- Entry + Exit side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+      <!-- ENTRY -->
+      <div class="card">
+        <div class="ch" style="background:rgba(46,192,139,.07)"><h3>⬆️ Suth Aana (Entry)</h3></div>
+        <div class="cb">
+          <div class="frow">
+            <div class="fg"><label>Date *</label><input type="date" id="siDate" class="fi"></div>
+            <div class="fg"><label>Quantity (kg) *</label><input type="number" id="siQty" class="fi" placeholder="e.g. 5.000" step="0.001" min="0"></div>
+          </div>
+          <div class="fg"><label>Supplier / Party</label><input type="text" id="siParty" class="fi" placeholder="e.g. Raju Suth Wala"></div>
+          <div class="frow">
+            <div class="fg"><label>Rate per Kg (₹)</label><input type="number" id="siRate" class="fi" placeholder="e.g. 350" step="0.01" oninput="calcEntryValue()"></div>
+            <div class="fg"><label>Total Value (₹)</label><input type="text" id="siValue" class="fi" readonly placeholder="auto"></div>
+          </div>
+          <div class="fg"><label>Notes</label><input type="text" id="siNotes" class="fi" placeholder="Optional"></div>
+        </div>
+        <div class="brow"><button class="btn bg2b bsm" onclick="resetSuthIn()">Clear</button><button class="btn bp" id="btnSI" onclick="submitSuthIn()">✅ Save Entry</button></div>
+      </div>
+
+      <!-- EXIT -->
+      <div class="card">
+        <div class="ch" style="background:rgba(224,82,96,.07)"><h3>⬇️ Suth Jana (Exit)</h3></div>
+        <div class="cb">
+          <div class="frow">
+            <div class="fg"><label>Date *</label><input type="date" id="soDate" class="fi"></div>
+            <div class="fg"><label>Quantity Used (kg) *</label><input type="number" id="soQty" class="fi" placeholder="e.g. 3.000" step="0.001" min="0"></div>
+          </div>
+          <div class="fg"><label>Purpose / Order Name</label><input type="text" id="soParty" class="fi" placeholder="e.g. School Uniform 500m Order"></div>
+          <div class="fg"><label>Notes</label><input type="text" id="soNotes" class="fi" placeholder="Optional"></div>
+          <div class="infoline" id="soAvailInfo">🧵 Available Suth: 0.000 kg</div>
+        </div>
+        <div class="brow"><button class="btn bg2b bsm" onclick="resetSuthOut()">Clear</button><button class="btn bd" id="btnSO" onclick="submitSuthOut()">🔻 Save Exit</button></div>
+      </div>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="card">
+      <div class="ch">
+        <h3>📋 Suth Ledger — Running Balance</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn bg2b bsm" onclick="exportSuthCSV()">📥 CSV</button>
+          <button class="btn bg2b bsm" onclick="exportSuthPDF()">📄 PDF</button>
+        </div>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Qty (kg)</th><th>Party / Purpose</th><th>Rate/kg</th><th>Value (₹)</th><th>Balance (kg)</th></tr>
+          </thead>
+          <tbody id="suthTable"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SUTH CALCULATOR ===== -->
+  <div class="pg" id="pg-suth">
+    <div class="card" style="max-width:600px">
+      <div class="ch"><h3>🧮 Suth Calculator</h3></div>
+      <div class="cb">
+        <p style="color:var(--tm);margin-bottom:16px;font-size:13px">Formula: <b style="color:var(--gol)">Total Suth (kg) = Meters × Suth Rate per Meter</b></p>
+        <div class="frow">
+          <div class="fg"><label>Total Meters *</label><input type="number" id="scMeters" class="fi" placeholder="e.g. 500" step="0.5" oninput="calcSuth()"></div>
+          <div class="fg"><label>Suth Rate per Meter (kg) *</label><input type="number" id="scRate" class="fi" placeholder="e.g. 0.007854" step="0.000001" oninput="calcSuth()"></div>
+          <div class="fg"><label>Suth Price per Kg (₹)</label><input type="number" id="scPrice" class="fi" placeholder="e.g. 350" oninput="calcSuth()"></div>
+        </div>
+        <div class="suth-result">
+          <div class="sr"><div class="sr-l">Total Suth Used</div><div class="sr-v" id="scTotalSuth">—</div></div>
+          <div class="sr"><div class="sr-l">Total Suth Cost</div><div class="sr-v" id="scTotalCost">—</div></div>
+          <div class="sr"><div class="sr-l">Cost per Meter</div><div class="sr-v" id="scPerMeter">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:600px">
+      <div class="ch"><h3>📋 Meter-wise Breakdown Table</h3></div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Meters</th><th>Suth Used (kg)</th><th>Suth Cost (₹)</th></tr></thead>
+          <tbody id="scTable"><tr><td colspan="3" style="text-align:center;padding:18px;color:var(--tm)">Upar values enter karein</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="pg" id="pg-settings">
+    <div class="card" style="max-width:520px">
+      <div class="ch"><h3>⚙️ Settings</h3></div>
+      <div class="cb">
+        <!-- LOGO UPLOAD -->
+        <div class="fg" style="margin-bottom:18px">
+          <label>Company Logo</label>
+          <div style="display:flex;align-items:center;gap:16px">
+            <div class="logo-preview" id="logoPreview">🧵</div>
+            <div>
+              <label class="btn bg2b bsm" style="cursor:pointer">
+                📷 Upload Logo
+                <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+              </label>
+              <div style="font-size:11px;color:var(--tm);margin-top:6px">PNG/JPG • Sidebar mein dikhega</div>
+              <button class="btn bg2b bsm" style="margin-top:6px;color:var(--dan);border-color:var(--dan)" onclick="removeLogo()">🗑 Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="fg"><label>Company Name</label><input type="text" id="settCompany" class="fi" value="Momin Textile"></div>
+        <div class="fg"><label>Google Apps Script URL *</label><input type="url" id="settApiUrl" class="fi" placeholder="https://script.google.com/macros/s/..."></div>
+        <hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">
+        <div class="fg">
+          <label>🔒 Change PIN (4 digits)</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <input type="password" id="settNewPin" class="fi" placeholder="New PIN" maxlength="4" pattern="[0-9]{4}">
+            <input type="password" id="settConfirmPin" class="fi" placeholder="Confirm PIN" maxlength="4" pattern="[0-9]{4}">
+          </div>
+          <div class="fhint">Default PIN: 1234 — har device mein same PIN set karo</div>
+        </div>
+      </div>
+      <div class="brow">
+        <button class="btn bg2b" onclick="doLogout()">🚪 Logout</button>
+        <button class="btn bp" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:520px">
+      <div class="ch"><h3>📖 Setup Guide</h3></div>
+      <div class="cb" style="line-height:2.2;font-size:13px;color:var(--tm)">
+        <p><b style="color:var(--gol)">Step 1:</b> Google Sheet banao, ek tab ka naam rakho: <code style="background:var(--bg3);padding:2px 8px;border-radius:4px;color:var(--tx)">SuthStock</code></p>
+        <p><b style="color:var(--gol)">Step 2:</b> Extensions → Apps Script → Code.gs paste karo → Save</p>
+        <p><b style="color:var(--gol)">Step 3:</b> Deploy → New Deployment → Web App</p>
+        <p><b style="color:var(--gol)">Step 4:</b> "Execute as: Me" aur "Who has access: Anyone" set karo</p>
+        <p><b style="color:var(--gol)">Step 5:</b> URL copy karo → upar paste karo → Save Settings dabao</p>
+        <p><b style="color:var(--gol)">Step 6:</b> 🎉 Done! Suth ka data Google Sheets mein save hoga</p>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /cnt -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="bnav" id="bnav">
+  <button class="bn active" id="bn-dash" onclick="showPage('dash')">
+    <span class="bni">📊</span>Dashboard
+  </button>
+  <button class="bn" id="bn-suth-stock" onclick="showPage('suth-stock')">
+    <span class="bni">🧵</span>Suth
+  </button>
+  <button class="bn" id="bn-suth" onclick="showPage('suth')">
+    <span class="bni">🧮</span>Calculator
+  </button>
+  <button class="bn" id="bn-settings" onclick="showPage('settings')">
+    <span class="bni">⚙️</span>Settings
+  </button>
+</nav>
+
+<div class="toasts" id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>
