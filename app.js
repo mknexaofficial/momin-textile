@@ -142,7 +142,16 @@ function checkPin() {
   const stored = localStorage.getItem('mt_pin') || '1234';
   if (pinEntry === stored) {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ time: Date.now() }));
-    unlockApp();
+    // PRO SUCCESS ANIMATION
+    for (let i = 0; i < 4; i++) {
+      const c = document.getElementById('pc' + i);
+      if (c) {
+        c.style.background = 'var(--suc)';
+        c.style.transform = 'scale(1.4)';
+        c.style.boxShadow = '0 0 15px var(--suc)';
+      }
+    }
+    setTimeout(unlockApp, 400); // smooth delay
   } else {
     document.getElementById('pinErr').textContent = '❌ Wrong PIN — try again';
     const inp = document.getElementById('pinReal');
@@ -161,7 +170,11 @@ function checkPin() {
 
 function unlockApp() {
   const ps = document.getElementById('pinScreen');
-  if (ps) ps.style.display = 'none';
+  if (ps) {
+    ps.style.opacity = '0';
+    ps.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => { ps.style.display = 'none'; }, 400);
+  }
 }
 
 function doLogout() {
@@ -256,14 +269,33 @@ async function api(action, data = {}) {
   }
 }
 
-// ===== REFRESH DATA =====
-async function refreshData() {
+// ===== REFRESH DATA (With Fast Local Cache) =====
+async function refreshData(silent = false) {
+  // Show initial loading state if no cache
+  if (!silent && suthRecords.length === 0) {
+    const cached = localStorage.getItem('mt_suth_data');
+    if (cached) {
+      try {
+        const c = JSON.parse(cached);
+        suthRecords = c.data || [];
+        suthTotalIn = c.totalIn || 0; suthTotalOut = c.totalOut || 0; suthAvailable = c.available || 0;
+        renderDash(); renderSuthLedger(); updateAvailInfo();
+      } catch (e) {}
+    } else {
+      // First time load indicator
+      document.getElementById('dIn').textContent = 'Loading...';
+      document.getElementById('dOut').textContent = 'Loading...';
+      document.getElementById('dAvail').textContent = 'Loading...';
+    }
+  }
+
   const res = await api('getSuthStock');
   if (res && res.success) {
     suthRecords  = res.data       || [];
     suthTotalIn  = res.totalIn    || 0;
     suthTotalOut = res.totalOut   || 0;
     suthAvailable= res.available  || 0;
+    localStorage.setItem('mt_suth_data', JSON.stringify(res)); // Save to cache
   }
   renderDash();
   renderSuthLedger();
@@ -275,34 +307,41 @@ function renderDash() {
   setText('dIn',    suthTotalIn.toFixed(3)   + ' kg');
   setText('dOut',   suthTotalOut.toFixed(3)  + ' kg');
   setText('dAvail', suthAvailable.toFixed(3) + ' kg');
-  buildBarChart();
+  buildPieChart();
   buildFeed();
 }
 
-function buildBarChart() {
-  const ctx = document.getElementById('cBar'); if (!ctx) return;
-  if (charts.bar) { charts.bar.destroy(); }
+function buildPieChart() {
+  const ctx = document.getElementById('cPie'); if (!ctx) return;
+  if (charts.pie) { charts.pie.destroy(); }
 
-  // Group by month
-  const months = last6();
-  const inData  = months.map(m => suthRecords.filter(r => r.type === 'in'  && r.date.startsWith(m)).reduce((s, r) => s + r.qty, 0));
-  const outData = months.map(m => suthRecords.filter(r => r.type === 'out' && r.date.startsWith(m)).reduce((s, r) => s + r.qty, 0));
+  // Default to 1, 1 if zero so graph renders as empty placeholder
+  const hasData = suthTotalIn > 0 || suthTotalOut > 0;
+  const avail = hasData ? suthAvailable : 1;
+  const out = hasData ? suthTotalOut : 1;
+  const colors = hasData ? ['#c9a84c', '#e05260'] : ['rgba(201,168,76,.1)', 'rgba(224,82,96,.1)'];
 
-  charts.bar = new Chart(ctx, {
-    type: 'bar',
+  charts.pie = new Chart(ctx, {
+    type: 'doughnut',
     data: {
-      labels: months,
-      datasets: [
-        { label: 'Aaya (In)',  data: inData,  backgroundColor: '#2ec08b', borderRadius: 5 },
-        { label: 'Gaya (Out)', data: outData, backgroundColor: '#e05260', borderRadius: 5 }
-      ]
+      labels: ['Available Suth', 'Used (Gaya)'],
+      datasets: [{
+        data: [avail, out],
+        backgroundColor: colors,
+        borderWidth: 0,
+        hoverOffset: hasData ? 6 : 0
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#8a9bb5' } } },
-      scales: {
-        x: { ticks: { color: '#8a9bb5' }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#8a9bb5' }, grid: { color: 'rgba(255,255,255,.05)' } }
+      cutout: '70%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20 } },
+        tooltip: { 
+          callbacks: { 
+            label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(3) + ' kg' : ' No Data' 
+          } 
+        }
       }
     }
   });
