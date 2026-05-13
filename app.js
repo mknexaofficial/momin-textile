@@ -375,8 +375,17 @@ function showDeleteModal(id, qtyLabel, type) {
   modal.style.display = 'flex';
   // Confirm button
   document.getElementById('delConfirmBtn').onclick = async () => {
-    modal.style.display = 'none';
+    const btn = document.getElementById('delConfirmBtn');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Deleting...';
+    btn.disabled = true;
+
     const res = await api('deleteSuthRecord', { id });
+    
+    btn.innerHTML = oldText;
+    btn.disabled = false;
+    modal.style.display = 'none';
+
     if (res && res.success) {
       toast('✅ Record delete ho gaya!', 'success');
       refreshData();
