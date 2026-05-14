@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Momin Textile">
 <meta name="theme-color" content="#0d1b2a">
+<link rel="manifest" href="manifest.json">
 <title>Momin Textile — Suth Manager</title>
 <meta name="description" content="Momin Textile Mill — Suth stock management system">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>">
@@ -15,6 +16,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed: ', err));
+  });
+}
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 :root{--bg:#0d1b2a;--bg2:#162032;--bg3:#1e2d42;--gold:#c9a84c;--gol:#e2c06b;--tm:#8a9bb5;--tx:#e8edf5;--brd:#243652;--dan:#e05260;--suc:#2ec08b;--war:#f0a429;--r:10px}
@@ -371,7 +379,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
         <div class="cb"><div class="cwrap"><canvas id="cPie"></canvas></div></div>
       </div>
       <div class="card" style="margin-bottom:0;">
-        <div class="ch"><h3>📊 Dhaga (Dori) Graph</h3></div>
+        <div class="ch"><h3>📊 Dhaga Stock Graph</h3></div>
         <div class="cb"><div class="cwrap"><canvas id="dPie"></canvas></div></div>
       </div>
     </div>
@@ -594,16 +602,26 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
   <button class="bn" id="bn-suth-stock" onclick="showPage('suth-stock')">
     <span class="bni">🧵</span>Suth
   </button>
+  <button class="bn" id="bn-dori-stock" onclick="showPage('dori-stock')">
+    <span class="bni">🧶</span>Dhaga
+  </button>
   <button class="bn" id="bn-suth" onclick="showPage('suth')">
-    <span class="bni">🧮</span>Calculator
+    <span class="bni">🧮</span>Calc
   </button>
   <button class="bn" id="bn-settings" onclick="showPage('settings')">
-    <span class="bni">⚙️</span>Settings
+    <span class="bni">⚙️</span>Setup
   </button>
 </nav>
 
 <div class="toasts" id="toasts"></div>
 <script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => console.log('SW Registered'));
+    });
+  }
+</script>
 </body>
 </html>
 

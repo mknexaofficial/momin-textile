@@ -342,7 +342,7 @@ function renderDash() {
   setText('ddAvail', doriAvailable.toFixed(0));
 
   buildPieChart();
-  buildDoriPieChart();
+  buildDhagaPieChart();
   buildFeed();
 }
 
@@ -350,28 +350,32 @@ function buildPieChart() {
   const ctx = document.getElementById('cPie'); if (!ctx) return;
   if (charts.pie) { charts.pie.destroy(); }
 
-  // Default to 1, 1 if zero so graph renders as empty placeholder
   const hasData = suthTotalIn > 0 || suthTotalOut > 0;
-  const avail = hasData ? suthAvailable : 1;
-  const out = hasData ? suthTotalOut : 1;
-  const colors = hasData ? ['#c9a84c', '#e05260'] : ['rgba(201,168,76,.1)', 'rgba(224,82,96,.1)'];
+  const inV = hasData ? suthTotalIn : 1;
+  const outV = hasData ? suthTotalOut : 0;
+  const availV = hasData ? suthAvailable : 1;
+
+  // Sections: [Total In, Total Out, Available]
+  // Note: Total In = Total Out + Available, so Total In will be 50% of the pie.
+  const dataArr = hasData ? [inV, outV, availV] : [1, 0, 1];
+  const colors = hasData ? ['#3498db', '#e05260', '#c9a84c'] : ['rgba(52,152,219,.1)', 'rgba(224,82,96,.1)', 'rgba(201,168,76,.1)'];
 
   charts.pie = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Available Suth', 'Used (Gaya)'],
+      labels: ['Total Aaya (In)', 'Total Gaya (Out)', 'Baaki (Available)'],
       datasets: [{
-        data: [avail, out],
+        data: dataArr,
         backgroundColor: colors,
         borderWidth: 0,
-        hoverOffset: hasData ? 6 : 0
+        hoverOffset: hasData ? 8 : 0
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      cutout: '70%',
+      cutout: '65%',
       plugins: { 
-        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20 } },
+        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20, font: { size: 11 } } },
         tooltip: { 
           callbacks: { 
             label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(3) + ' kg' : ' No Data' 
@@ -382,32 +386,34 @@ function buildPieChart() {
   });
 }
 
-function buildDoriPieChart() {
+function buildDhagaPieChart() {
   const ctx = document.getElementById('dPie'); if (!ctx) return;
   if (charts.dPie) { charts.dPie.destroy(); }
 
-  // Default to 1, 1 if zero so graph renders as empty placeholder
   const hasData = doriTotalIn > 0 || doriTotalOut > 0;
-  const avail = hasData ? doriAvailable : 1;
-  const out = hasData ? doriTotalOut : 1;
-  const colors = hasData ? ['#2ec08b', '#e05260'] : ['rgba(46,192,139,.1)', 'rgba(224,82,96,.1)'];
+  const inV = hasData ? doriTotalIn : 1;
+  const outV = hasData ? doriTotalOut : 0;
+  const availV = hasData ? doriAvailable : 1;
+
+  const dataArr = hasData ? [inV, outV, availV] : [1, 0, 1];
+  const colors = hasData ? ['#2ec08b', '#e05260', '#c9a84c'] : ['rgba(46,192,139,.1)', 'rgba(224,82,96,.1)', 'rgba(201,168,76,.1)'];
 
   charts.dPie = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Available Dhaga', 'Used (Gaya)'],
+      labels: ['Total Aaya (In)', 'Total Gaya (Out)', 'Baaki (Available)'],
       datasets: [{
-        data: [avail, out],
+        data: dataArr,
         backgroundColor: colors,
         borderWidth: 0,
-        hoverOffset: hasData ? 6 : 0
+        hoverOffset: hasData ? 8 : 0
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      cutout: '70%',
+      cutout: '65%',
       plugins: { 
-        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20 } },
+        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20, font: { size: 11 } } },
         tooltip: { 
           callbacks: { 
             label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(0) + ' Bundle' : ' No Data' 
@@ -735,13 +741,13 @@ function renderDoriLedger() {
       <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
       <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
       <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(0)}</b></td>
-      <td><button onclick="showDeleteDoriModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
+      <td><button onclick="showDeleteDhagaModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
     </tr>`;
   });
   tbody.innerHTML = rows.reverse().join('');
 }
 
-function showDeleteDoriModal(id, qtyLabel, type) {
+function showDeleteDhagaModal(id, qtyLabel, type) {
   const modal = document.getElementById('deleteModal');
   document.getElementById('delModalTitle').textContent = (type === 'in' ? '⬆️ Entry' : '⬇️ Exit') + ' delete karna chahte hain?';
   document.getElementById('delModalDetail').textContent = 'Qty: ' + qtyLabel + ' — Google Sheet se bhi hata diya jaayega!';
@@ -760,7 +766,7 @@ function showDeleteDoriModal(id, qtyLabel, type) {
     modal.style.display = 'none';
 
     if (res && res.success) {
-      toast('✅ Dori record delete ho gaya!', 'success');
+      toast('✅ Dhaga record delete ho gaya!', 'success');
       refreshData();
     } else {
       toast(res ? res.error : 'Delete nahi hua', 'error');
