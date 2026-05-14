@@ -4,7 +4,7 @@
 //
 // Headers in Row 1:
 // ID | Date | Item | Type | Qty | Party | Rate | Total_Value | Notes
-// Item => 'Suth' ya 'Dhada'
+// Item => 'Suth' ya 'Dhaga'
 // Type => 'in' ya 'out'
 // ================================================================
 
@@ -93,7 +93,7 @@ function getRecords() {
   }));
 
   const suthData = data.filter(r => r.item === 'Suth');
-  const doriData = data.filter(r => r.item === 'Dhada');
+  const doriData = data.filter(r => r.item === 'Dhaga');
 
   const sIn = suthData.filter(r => r.type === 'in').reduce((s, r) => s + r.qty, 0);
   const sOut= suthData.filter(r => r.type === 'out').reduce((s, r) => s + r.qty, 0);
@@ -121,7 +121,7 @@ function updateTotals() {
     if (item === 'Suth') {
       if (type === 'in') sIn += qty;
       if (type === 'out') sOut += qty;
-    } else if (item === 'Dhada') {
+    } else if (item === 'Dhaga') {
       if (type === 'in') dIn += qty;
       if (type === 'out') dOut += qty;
     }
@@ -134,11 +134,11 @@ function updateTotals() {
   sheet.getRange(1, 13).setValue('Suth AVAIL').setFontWeight('bold');
   sheet.getRange(2, 13).setValue(sIn - sOut).setFontWeight('bold').setFontColor(sIn - sOut >= 0 ? 'green' : 'red');
 
-  sheet.getRange(4, 11).setValue('Dhada IN').setFontWeight('bold');
+  sheet.getRange(4, 11).setValue('Dhaga IN').setFontWeight('bold');
   sheet.getRange(5, 11).setValue(dIn);
-  sheet.getRange(4, 12).setValue('Dhada OUT').setFontWeight('bold');
+  sheet.getRange(4, 12).setValue('Dhaga OUT').setFontWeight('bold');
   sheet.getRange(5, 12).setValue(dOut);
-  sheet.getRange(4, 13).setValue('Dhada AVAIL').setFontWeight('bold');
+  sheet.getRange(4, 13).setValue('Dhaga AVAIL').setFontWeight('bold');
   sheet.getRange(5, 13).setValue(dIn - dOut).setFontWeight('bold').setFontColor(dIn - dOut >= 0 ? 'green' : 'red');
 }
 

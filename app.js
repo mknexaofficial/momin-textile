@@ -395,7 +395,7 @@ function buildDoriPieChart() {
   charts.dPie = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Available Dhada', 'Used (Gaya)'],
+      labels: ['Available Dhaga', 'Used (Gaya)'],
       datasets: [{
         data: [avail, out],
         backgroundColor: colors,
@@ -422,7 +422,7 @@ function buildFeed() {
   const tbody = document.getElementById('feed');
   const allRecs = [
     ...suthRecords.map(r => ({...r, item: '🧵 Suth', qFmt: r.qty.toFixed(3) + ' kg'})),
-    ...doriRecords.map(r => ({...r, item: '🧶 Dhada', qFmt: r.qty.toFixed(0) + ' Bndl'}))
+    ...doriRecords.map(r => ({...r, item: '🧶 Dhaga', qFmt: r.qty.toFixed(0) + ' Bndl'}))
   ];
   const sorted = allRecs.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 10);
   
@@ -510,7 +510,7 @@ function updateAvailInfo() {
   if (el) el.textContent = `🧵 Available Suth: ${suthAvailable.toFixed(3)} kg — is se zyada exit nahi ho sakta`;
   
   const doEl = document.getElementById('doAvailInfo');
-  if (doEl) doEl.textContent = `🧶 Available Dhada: ${doriAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
+  if (doEl) doEl.textContent = `🧶 Available Dhaga: ${doriAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
 }
 
 // ===== SUTH ENTRY =====
@@ -780,7 +780,7 @@ async function submitDoriIn() {
 
   const btn = document.getElementById('btnDI');
   btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Dhada', type: 'in' });
+  const res = await api('addRecord', { ...d, item: 'Dhaga', type: 'in' });
   btn.textContent = '✅ Save Entry'; btn.disabled = false;
 
   if (res && res.success) {
@@ -820,7 +820,7 @@ async function submitDoriOut() {
 
   const btn = document.getElementById('btnDO');
   btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Dhada', type: 'out' });
+  const res = await api('addRecord', { ...d, item: 'Dhaga', type: 'out' });
   btn.textContent = '🔻 Save Exit'; btn.disabled = false;
 
   if (res && res.success) {

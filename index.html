@@ -304,7 +304,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
   <div style="padding:12px 8px 0">
     <div class="nav-item active" id="nav-dash" onclick="showPage('dash')"><span class="ni">📊</span> Dashboard</div>
     <div class="nav-item" id="nav-suth-stock" onclick="showPage('suth-stock')"><span class="ni">🧵</span> Suth Ledger</div>
-    <div class="nav-item" id="nav-dori-stock" onclick="showPage('dori-stock')"><span class="ni">🧶</span> Dhada Ledger</div>
+    <div class="nav-item" id="nav-dori-stock" onclick="showPage('dori-stock')"><span class="ni">🧶</span> Dhaga Ledger</div>
     <div class="nav-item" id="nav-suth" onclick="showPage('suth')"><span class="ni">🧮</span> Suth Calculator</div>
     <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><span class="ni">⚙️</span> Settings</div>
   </div>
@@ -348,19 +348,19 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
     </div>
 
     <!-- Dori Stats -->
-    <h3 style="margin-top: 24px; margin-bottom: 12px; color: var(--tx); font-size: 14px;">🧶 Dhada (Dori) Bundle Overview</h3>
+    <h3 style="margin-top: 24px; margin-bottom: 12px; color: var(--tx); font-size: 14px;">🧶 Dhaga (Dori) Bundle Overview</h3>
     <div class="stats">
       <div class="sc green">
         <span class="sc-ic">⬆️</span>
-        <div><div class="sc-l">Dhada Aaya (Bundle)</div><div class="sc-v" id="ddIn">0</div></div>
+        <div><div class="sc-l">Dhaga Aaya (Bundle)</div><div class="sc-v" id="ddIn">0</div></div>
       </div>
       <div class="sc red">
         <span class="sc-ic">⬇️</span>
-        <div><div class="sc-l">Dhada Gaya (Bundle)</div><div class="sc-v" id="ddOut">0</div></div>
+        <div><div class="sc-l">Dhaga Gaya (Bundle)</div><div class="sc-v" id="ddOut">0</div></div>
       </div>
       <div class="sc gold">
         <span class="sc-ic">🧶</span>
-        <div><div class="sc-l">Available Dhada</div><div class="sc-v" id="ddAvail">0</div></div>
+        <div><div class="sc-l">Available Dhaga</div><div class="sc-v" id="ddAvail">0</div></div>
       </div>
     </div>
 
@@ -371,7 +371,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
         <div class="cb"><div class="cwrap"><canvas id="cPie"></canvas></div></div>
       </div>
       <div class="card" style="margin-bottom:0;">
-        <div class="ch"><h3>📊 Dhada (Dori) Graph</h3></div>
+        <div class="ch"><h3>📊 Dhaga (Dori) Graph</h3></div>
         <div class="cb"><div class="cwrap"><canvas id="dPie"></canvas></div></div>
       </div>
     </div>
@@ -469,7 +469,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <!-- EXIT -->
       <div class="card">
-        <div class="ch" style="background:rgba(224,82,96,.07)"><h3>⬇️ Dhada Jana (Exit)</h3></div>
+        <div class="ch" style="background:rgba(224,82,96,.07)"><h3>⬇️ Dhaga Jana (Exit)</h3></div>
         <div class="cb">
           <div class="frow">
             <div class="fg"><label>Date *</label><input type="date" id="doDate" class="fi"></div>
@@ -481,13 +481,13 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
             <div class="fg"><label>Total (₹)</label><input type="text" id="doValue" class="fi" readonly placeholder="auto"></div>
           </div>
           <div class="fg"><label>Notes</label><input type="text" id="doNotes" class="fi"></div>
-          <div class="infoline" id="doAvailInfo">🧶 Available Dhada: 0 Bundle</div>
+          <div class="infoline" id="doAvailInfo">🧶 Available Dhaga: 0 Bundle</div>
         </div>
         <div class="brow"><button class="btn bg2b bsm" onclick="resetDoriOut()">Clear</button><button class="btn bd" id="btnDO" onclick="submitDoriOut()">🔻 Save Exit</button></div>
       </div>
       <!-- ENTRY -->
       <div class="card">
-        <div class="ch" style="background:rgba(46,192,139,.07)"><h3>⬆️ Dhada Aana (Entry)</h3></div>
+        <div class="ch" style="background:rgba(46,192,139,.07)"><h3>⬆️ Dhaga Aana (Entry)</h3></div>
         <div class="cb">
           <div class="frow">
             <div class="fg"><label>Date *</label><input type="date" id="diDate" class="fi"></div>
@@ -502,7 +502,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 
     <!-- Ledger Table -->
     <div class="card">
-      <div class="ch"><h3>📋 Dhada Ledger</h3></div>
+      <div class="ch"><h3>📋 Dhaga Ledger</h3></div>
       <div class="tw">
         <table>
           <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Party/Purpose</th><th>Rate</th><th>Value (₹)</th><th>Balance</th><th>Action</th></tr></thead>
@@ -606,4 +606,5 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 <script src="app.js"></script>
 </body>
 </html>
-
+
+
