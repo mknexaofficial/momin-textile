@@ -135,6 +135,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 /* ===== RESPONSIVE ===== */
 @media(max-width:900px){
   .stats{grid-template-columns:1fr 1fr}
+  .charts-row{grid-template-columns:1fr !important}
 }
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%);width:240px}
@@ -236,8 +237,9 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 }
 .pin-char.on{background:var(--gold);transform:scale(1.3);box-shadow:0 0 10px rgba(201,168,76,.7)}
 .pin-real{
-  position:absolute;inset:0;opacity:0;width:100%;height:100%;
+  position:absolute;inset:0;width:100%;height:100%;
   cursor:text;font-size:16px;
+  color:transparent;background:transparent;border:none;outline:none;caret-color:transparent;
   -webkit-tap-highlight-color:transparent;
 }
 .pin-hint{font-size:11px;color:rgba(255,255,255,.28);margin-top:20px;letter-spacing:.3px}
@@ -302,6 +304,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
   <div style="padding:12px 8px 0">
     <div class="nav-item active" id="nav-dash" onclick="showPage('dash')"><span class="ni">📊</span> Dashboard</div>
     <div class="nav-item" id="nav-suth-stock" onclick="showPage('suth-stock')"><span class="ni">🧵</span> Suth Ledger</div>
+    <div class="nav-item" id="nav-dori-stock" onclick="showPage('dori-stock')"><span class="ni">🧶</span> Dhada Ledger</div>
     <div class="nav-item" id="nav-suth" onclick="showPage('suth')"><span class="ni">🧮</span> Suth Calculator</div>
     <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><span class="ni">⚙️</span> Settings</div>
   </div>
@@ -326,34 +329,61 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 
   <!-- ===== DASHBOARD ===== -->
   <div class="pg" id="pg-dash">
+    
+    <!-- Suth Stats -->
+    <h3 style="margin-bottom: 12px; color: var(--tx); font-size: 14px;">🧵 Suth Overview</h3>
     <div class="stats">
       <div class="sc green">
         <span class="sc-ic">⬆️</span>
-        <div><div class="sc-l">Total Suth Aaya (kg)</div><div class="sc-v" id="dIn">0</div></div>
+        <div><div class="sc-l">Suth Aaya (kg)</div><div class="sc-v" id="dIn">0</div></div>
       </div>
       <div class="sc red">
         <span class="sc-ic">⬇️</span>
-        <div><div class="sc-l">Total Suth Gaya (kg)</div><div class="sc-v" id="dOut">0</div></div>
+        <div><div class="sc-l">Suth Gaya (kg)</div><div class="sc-v" id="dOut">0</div></div>
       </div>
       <div class="sc gold">
         <span class="sc-ic">🧵</span>
-        <div><div class="sc-l">Baaki Suth Available</div><div class="sc-v" id="dAvail">0</div></div>
+        <div><div class="sc-l">Available Suth</div><div class="sc-v" id="dAvail">0</div></div>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
-      <div class="card">
-        <div class="ch"><h3>📊 Suth Stock Distribution</h3></div>
+    <!-- Dori Stats -->
+    <h3 style="margin-top: 24px; margin-bottom: 12px; color: var(--tx); font-size: 14px;">🧶 Dhada (Dori) Bundle Overview</h3>
+    <div class="stats">
+      <div class="sc green">
+        <span class="sc-ic">⬆️</span>
+        <div><div class="sc-l">Dhada Aaya (Bundle)</div><div class="sc-v" id="ddIn">0</div></div>
+      </div>
+      <div class="sc red">
+        <span class="sc-ic">⬇️</span>
+        <div><div class="sc-l">Dhada Gaya (Bundle)</div><div class="sc-v" id="ddOut">0</div></div>
+      </div>
+      <div class="sc gold">
+        <span class="sc-ic">🧶</span>
+        <div><div class="sc-l">Available Dhada</div><div class="sc-v" id="ddAvail">0</div></div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;margin-top:24px;">
+      <div class="card" style="margin-bottom:0;">
+        <div class="ch"><h3>📊 Suth Stock Graph</h3></div>
         <div class="cb"><div class="cwrap"><canvas id="cPie"></canvas></div></div>
       </div>
-      <div class="card">
-        <div class="ch"><h3>📋 Aakhri 10 Entries</h3></div>
-        <div class="tw">
-          <table>
-            <thead><tr><th>Date</th><th>Type</th><th>Qty (kg)</th><th>Party</th><th>Balance</th></tr></thead>
-            <tbody id="feed"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr></tbody>
-          </table>
-        </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="ch"><h3>📊 Dhada (Dori) Graph</h3></div>
+        <div class="cb"><div class="cwrap"><canvas id="dPie"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- Unified Feed -->
+    <div class="card">
+      <div class="ch"><h3>📋 Aakhri 10 Entries (Mix)</h3></div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Qty</th><th>Party</th></tr></thead>
+          <tbody id="feed"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -371,7 +401,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
     <!-- Entry + Exit side by side -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
 
-      <!-- EXIT (Moved to first position) -->
+      <!-- EXIT (Subtracts stock) -->
       <div class="card">
         <div class="ch" style="background:rgba(224,82,96,.07)"><h3>⬇️ Suth Jana (Exit)</h3></div>
         <div class="cb">
@@ -379,14 +409,18 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
             <div class="fg"><label>Date *</label><input type="date" id="soDate" class="fi"></div>
             <div class="fg"><label>Quantity Used (kg) *</label><input type="number" id="soQty" class="fi" placeholder="e.g. 3.000" step="0.001" min="0"></div>
           </div>
-          <div class="fg"><label>Purpose / Order Name</label><input type="text" id="soParty" class="fi" placeholder="e.g. School Uniform 500m Order"></div>
+          <div class="fg"><label>Supplier / Party</label><input type="text" id="soParty" class="fi" placeholder="e.g. Raju Suth Wala"></div>
+          <div class="frow">
+            <div class="fg"><label>Rate per Kg (₹)</label><input type="number" id="soRate" class="fi" placeholder="e.g. 350" step="0.01" oninput="calcExitValue()"></div>
+            <div class="fg"><label>Total Value (₹)</label><input type="text" id="soValue" class="fi" readonly placeholder="auto"></div>
+          </div>
           <div class="fg"><label>Notes</label><input type="text" id="soNotes" class="fi" placeholder="Optional"></div>
           <div class="infoline" id="soAvailInfo">🧵 Available Suth: 0.000 kg</div>
         </div>
         <div class="brow"><button class="btn bg2b bsm" onclick="resetSuthOut()">Clear</button><button class="btn bd" id="btnSO" onclick="submitSuthOut()">🔻 Save Exit</button></div>
       </div>
 
-      <!-- ENTRY (Moved to second position) -->
+      <!-- ENTRY (Adds stock) -->
       <div class="card">
         <div class="ch" style="background:rgba(46,192,139,.07)"><h3>⬆️ Suth Aana (Entry)</h3></div>
         <div class="cb">
@@ -394,11 +428,7 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
             <div class="fg"><label>Date *</label><input type="date" id="siDate" class="fi"></div>
             <div class="fg"><label>Quantity (kg) *</label><input type="number" id="siQty" class="fi" placeholder="e.g. 5.000" step="0.001" min="0"></div>
           </div>
-          <div class="fg"><label>Supplier / Party</label><input type="text" id="siParty" class="fi" placeholder="e.g. Raju Suth Wala"></div>
-          <div class="frow">
-            <div class="fg"><label>Rate per Kg (₹)</label><input type="number" id="siRate" class="fi" placeholder="e.g. 350" step="0.01" oninput="calcEntryValue()"></div>
-            <div class="fg"><label>Total Value (₹)</label><input type="text" id="siValue" class="fi" readonly placeholder="auto"></div>
-          </div>
+          <div class="fg"><label>Purpose / Order Name</label><input type="text" id="siParty" class="fi" placeholder="e.g. School Uniform 500m Order"></div>
           <div class="fg"><label>Notes</label><input type="text" id="siNotes" class="fi" placeholder="Optional"></div>
         </div>
         <div class="brow"><button class="btn bg2b bsm" onclick="resetSuthIn()">Clear</button><button class="btn bp" id="btnSI" onclick="submitSuthIn()">✅ Save Entry</button></div>
@@ -421,6 +451,62 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
             <tr><th>Date</th><th>Type</th><th>Qty (kg)</th><th>Party / Purpose</th><th>Rate/kg</th><th>Value (₹)</th><th>Balance (kg)</th><th>Action</th></tr>
           </thead>
           <tbody id="suthTable"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+    <!-- ===== DORI LEDGER ===== -->
+  <div class="pg" id="pg-dori-stock">
+    <!-- Summary -->
+    <div class="stats" style="margin-bottom:18px">
+      <div class="sc green"><span class="sc-ic">⬆️</span><div><div class="sc-l">Total In (Bundle)</div><div class="sc-v" id="dsIn">0</div></div></div>
+      <div class="sc red"><span class="sc-ic">⬇️</span><div><div class="sc-l">Total Out (Bundle)</div><div class="sc-v" id="dsOut">0</div></div></div>
+      <div class="sc gold"><span class="sc-ic">🧶</span><div><div class="sc-l">Available (Bundle)</div><div class="sc-v" id="dsAvail">0</div></div></div>
+    </div>
+
+    <!-- Entry + Exit side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <!-- EXIT -->
+      <div class="card">
+        <div class="ch" style="background:rgba(224,82,96,.07)"><h3>⬇️ Dhada Jana (Exit)</h3></div>
+        <div class="cb">
+          <div class="frow">
+            <div class="fg"><label>Date *</label><input type="date" id="doDate" class="fi"></div>
+            <div class="fg"><label>Qty (Bundle) *</label><input type="number" id="doQty" class="fi" placeholder="e.g. 10"></div>
+          </div>
+          <div class="fg"><label>Supplier / Party</label><input type="text" id="doParty" class="fi" placeholder="e.g. Raju Wala"></div>
+          <div class="frow">
+            <div class="fg"><label>Rate (₹)</label><input type="number" id="doRate" class="fi" placeholder="e.g. 50" oninput="calcDoriExitValue()"></div>
+            <div class="fg"><label>Total (₹)</label><input type="text" id="doValue" class="fi" readonly placeholder="auto"></div>
+          </div>
+          <div class="fg"><label>Notes</label><input type="text" id="doNotes" class="fi"></div>
+          <div class="infoline" id="doAvailInfo">🧶 Available Dhada: 0 Bundle</div>
+        </div>
+        <div class="brow"><button class="btn bg2b bsm" onclick="resetDoriOut()">Clear</button><button class="btn bd" id="btnDO" onclick="submitDoriOut()">🔻 Save Exit</button></div>
+      </div>
+      <!-- ENTRY -->
+      <div class="card">
+        <div class="ch" style="background:rgba(46,192,139,.07)"><h3>⬆️ Dhada Aana (Entry)</h3></div>
+        <div class="cb">
+          <div class="frow">
+            <div class="fg"><label>Date *</label><input type="date" id="diDate" class="fi"></div>
+            <div class="fg"><label>Qty (Bundle) *</label><input type="number" id="diQty" class="fi" placeholder="e.g. 50"></div>
+          </div>
+          <div class="fg"><label>Purpose / Order</label><input type="text" id="diParty" class="fi" placeholder="e.g. Loom 1"></div>
+          <div class="fg"><label>Notes</label><input type="text" id="diNotes" class="fi"></div>
+        </div>
+        <div class="brow"><button class="btn bg2b bsm" onclick="resetDoriIn()">Clear</button><button class="btn bp" id="btnDI" onclick="submitDoriIn()">✅ Save Entry</button></div>
+      </div>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="card">
+      <div class="ch"><h3>📋 Dhada Ledger</h3></div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Party/Purpose</th><th>Rate</th><th>Value (₹)</th><th>Balance</th><th>Action</th></tr></thead>
+          <tbody id="doriTable"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -520,3 +606,4 @@ tbody tr:hover{background:rgba(201,168,76,.06);transform:translateX(3px)}
 <script src="app.js"></script>
 </body>
 </html>
+

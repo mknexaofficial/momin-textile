@@ -3,15 +3,16 @@
 // ================================================================
 
 // ✅ HARDCODED API URL — har device par automatically kaam karega
-const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxSNaV_vuIzjCSNMc-7tLZwc_x45S7litAXYKtwUDO-snkgZUPKOYruSw-gK-RBGa1Tgw/exec';
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbwLYNkzujbCNtv1wiwB1FfExzJEz4vPP6xym1HHQwvIrXhCpLdB08E89bNXdMGnPDH1/exec';
 
 let API = '', suthRecords = [], suthTotalIn = 0, suthTotalOut = 0, suthAvailable = 0, charts = {};
+let doriRecords = [], doriTotalIn = 0, doriTotalOut = 0, doriAvailable = 0;
 
 // ===== INIT =====
 window.onload = () => {
   loadSettings();
   const today = new Date().toISOString().split('T')[0];
-  ['siDate', 'soDate'].forEach(id => { const e = document.getElementById(id); if (e) e.value = today; });
+  ['siDate', 'soDate', 'diDate', 'doDate'].forEach(id => { const e = document.getElementById(id); if (e) e.value = today; });
   setInterval(() => { const e = document.getElementById('clock'); if (e) e.textContent = new Date().toLocaleString('en-IN'); }, 1000);
   showPage('dash');
   checkSession();
@@ -22,6 +23,7 @@ window.onload = () => {
 const PAGES = {
   'dash':       'Dashboard',
   'suth-stock': 'Suth Ledger',
+  'dori-stock': 'Dori Ledger',
   'suth':       'Suth Calculator',
   'settings':   'Settings'
 };
@@ -137,6 +139,20 @@ function updatePinDots() {
     if (c) c.classList.toggle('on', i < pinEntry.length);
   }
 }
+
+// Ensure PC users can just type without clicking
+document.addEventListener('keydown', (e) => {
+  const ps = document.getElementById('pinScreen');
+  if (ps && ps.style.display !== 'none' && ps.style.opacity !== '0') {
+    const inp = document.getElementById('pinReal');
+    if (inp && document.activeElement !== inp && /^[0-9]$/.test(e.key)) {
+      inp.focus();
+      inp.value += e.key;
+      e.preventDefault(); // Prevent duplicate typing if browser focuses fast enough
+      onPinInput(inp);
+    }
+  }
+});
 
 function checkPin() {
   const stored = localStorage.getItem('mt_pin') || '1234';
@@ -277,9 +293,15 @@ async function refreshData(silent = false) {
     if (cached) {
       try {
         const c = JSON.parse(cached);
-        suthRecords = c.data || [];
+                suthRecords = c.data || [];
         suthTotalIn = c.totalIn || 0; suthTotalOut = c.totalOut || 0; suthAvailable = c.available || 0;
+        
+        const dc = c.dori ? c.dori : {data:[],totalIn:0,totalOut:0,available:0};
+        doriRecords = dc.data || [];
+        doriTotalIn = dc.totalIn || 0; doriTotalOut = dc.totalOut || 0; doriAvailable = dc.available || 0;
+        
         renderDash(); renderSuthLedger(); updateAvailInfo();
+        renderDoriLedger();
       } catch (e) {}
     } else {
       // First time load indicator
@@ -289,16 +311,23 @@ async function refreshData(silent = false) {
     }
   }
 
-  const res = await api('getSuthStock');
+  const res = await api('getRecords');
   if (res && res.success) {
-    suthRecords  = res.data       || [];
-    suthTotalIn  = res.totalIn    || 0;
-    suthTotalOut = res.totalOut   || 0;
-    suthAvailable= res.available  || 0;
+    suthRecords  = res.suth.data       || [];
+    suthTotalIn  = res.suth.totalIn    || 0;
+    suthTotalOut = res.suth.totalOut   || 0;
+    suthAvailable= res.suth.available  || 0;
+
+    doriRecords  = res.dori.data       || [];
+    doriTotalIn  = res.dori.totalIn    || 0;
+    doriTotalOut = res.dori.totalOut   || 0;
+    doriAvailable= res.dori.available  || 0;
+
     localStorage.setItem('mt_suth_data', JSON.stringify(res)); // Save to cache
   }
   renderDash();
   renderSuthLedger();
+  renderDoriLedger();
   updateAvailInfo();
 }
 
@@ -307,7 +336,13 @@ function renderDash() {
   setText('dIn',    suthTotalIn.toFixed(3)   + ' kg');
   setText('dOut',   suthTotalOut.toFixed(3)  + ' kg');
   setText('dAvail', suthAvailable.toFixed(3) + ' kg');
+  
+  setText('ddIn',    doriTotalIn.toFixed(0));
+  setText('ddOut',   doriTotalOut.toFixed(0));
+  setText('ddAvail', doriAvailable.toFixed(0));
+
   buildPieChart();
+  buildDoriPieChart();
   buildFeed();
 }
 
@@ -347,28 +382,62 @@ function buildPieChart() {
   });
 }
 
+function buildDoriPieChart() {
+  const ctx = document.getElementById('dPie'); if (!ctx) return;
+  if (charts.dPie) { charts.dPie.destroy(); }
+
+  // Default to 1, 1 if zero so graph renders as empty placeholder
+  const hasData = doriTotalIn > 0 || doriTotalOut > 0;
+  const avail = hasData ? doriAvailable : 1;
+  const out = hasData ? doriTotalOut : 1;
+  const colors = hasData ? ['#2ec08b', '#e05260'] : ['rgba(46,192,139,.1)', 'rgba(224,82,96,.1)'];
+
+  charts.dPie = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Available Dhada', 'Used (Gaya)'],
+      datasets: [{
+        data: [avail, out],
+        backgroundColor: colors,
+        borderWidth: 0,
+        hoverOffset: hasData ? 6 : 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20 } },
+        tooltip: { 
+          callbacks: { 
+            label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(0) + ' Bundle' : ' No Data' 
+          } 
+        }
+      }
+    }
+  });
+}
+
 function buildFeed() {
   const tbody = document.getElementById('feed');
-  const sorted = [...suthRecords].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+  const allRecs = [
+    ...suthRecords.map(r => ({...r, item: '🧵 Suth', qFmt: r.qty.toFixed(3) + ' kg'})),
+    ...doriRecords.map(r => ({...r, item: '🧶 Dhada', qFmt: r.qty.toFixed(0) + ' Bndl'}))
+  ];
+  const sorted = allRecs.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 10);
+  
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr>';
     return;
   }
-  // Calculate running balances from start
-  let balance = 0;
-  const balanceMap = {};
-  [...suthRecords].sort((a, b) => a.date.localeCompare(b.date)).forEach(r => {
-    balance += r.type === 'in' ? r.qty : -r.qty;
-    balanceMap[r.id] = balance;
-  });
-
+  
   tbody.innerHTML = sorted.map(r => `
     <tr>
       <td style="color:var(--tm);font-size:12px">${r.date}</td>
-      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ In' : '⬇️ Out'}</span></td>
-      <td><b>${r.qty.toFixed(3)}</b></td>
+      <td>${r.item}</td>
+      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
+      <td><b>${r.qFmt}</b></td>
       <td style="color:var(--tm)">${r.party || '—'}</td>
-      <td><b style="color:${(balanceMap[r.id] || 0) >= 0 ? 'var(--suc)' : 'var(--dan)'}">${(balanceMap[r.id] || 0).toFixed(3)}</b></td>
     </tr>`).join('');
 }
 
@@ -419,7 +488,7 @@ function showDeleteModal(id, qtyLabel, type) {
     btn.innerHTML = '⏳ Deleting...';
     btn.disabled = true;
 
-    const res = await api('deleteSuthRecord', { id });
+    const res = await api('deleteRecord', { id });
     
     btn.innerHTML = oldText;
     btn.disabled = false;
@@ -439,28 +508,24 @@ function showDeleteModal(id, qtyLabel, type) {
 function updateAvailInfo() {
   const el = document.getElementById('soAvailInfo');
   if (el) el.textContent = `🧵 Available Suth: ${suthAvailable.toFixed(3)} kg — is se zyada exit nahi ho sakta`;
+  
+  const doEl = document.getElementById('doAvailInfo');
+  if (doEl) doEl.textContent = `🧶 Available Dhada: ${doriAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
 }
 
 // ===== SUTH ENTRY =====
-function calcEntryValue() {
-  const q = parseFloat(document.getElementById('siQty').value) || 0;
-  const r = parseFloat(document.getElementById('siRate').value) || 0;
-  document.getElementById('siValue').value = q && r ? '₹' + fmt(q * r) : '';
-}
-
 async function submitSuthIn() {
   const d = {
-    date:      document.getElementById('siDate').value,
-    qty:       parseFloat(document.getElementById('siQty').value) || 0,
-    party:     document.getElementById('siParty').value.trim(),
-    ratePerKg: parseFloat(document.getElementById('siRate').value) || 0,
-    notes:     document.getElementById('siNotes').value.trim()
+    date:  document.getElementById('siDate').value,
+    qty:   parseFloat(document.getElementById('siQty').value) || 0,
+    party: document.getElementById('siParty').value.trim(),
+    notes: document.getElementById('siNotes').value.trim()
   };
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
 
   const btn = document.getElementById('btnSI');
   btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addSuthEntry', d);
+  const res = await api('addRecord', { ...d, item: 'Suth', type: 'in' });
   btn.textContent = '✅ Save Entry'; btn.disabled = false;
 
   if (res && res.success) {
@@ -473,18 +538,25 @@ async function submitSuthIn() {
 }
 
 function resetSuthIn() {
-  ['siQty', 'siParty', 'siRate', 'siNotes', 'siValue'].forEach(id => {
+  ['siQty', 'siParty', 'siNotes'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
 }
 
 // ===== SUTH EXIT =====
+function calcExitValue() {
+  const q = parseFloat(document.getElementById('soQty').value) || 0;
+  const r = parseFloat(document.getElementById('soRate').value) || 0;
+  document.getElementById('soValue').value = q && r ? '₹' + fmt(q * r) : '';
+}
+
 async function submitSuthOut() {
   const d = {
-    date:  document.getElementById('soDate').value,
-    qty:   parseFloat(document.getElementById('soQty').value) || 0,
-    party: document.getElementById('soParty').value.trim(),
-    notes: document.getElementById('soNotes').value.trim()
+    date:      document.getElementById('soDate').value,
+    qty:       parseFloat(document.getElementById('soQty').value) || 0,
+    party:     document.getElementById('soParty').value.trim(),
+    ratePerKg: parseFloat(document.getElementById('soRate').value) || 0,
+    notes:     document.getElementById('soNotes').value.trim()
   };
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
   if (d.qty > suthAvailable) {
@@ -494,7 +566,7 @@ async function submitSuthOut() {
 
   const btn = document.getElementById('btnSO');
   btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addSuthExit', d);
+  const res = await api('addRecord', { ...d, item: 'Suth', type: 'out' });
   btn.textContent = '🔻 Save Exit'; btn.disabled = false;
 
   if (res && res.success) {
@@ -507,7 +579,7 @@ async function submitSuthOut() {
 }
 
 function resetSuthOut() {
-  ['soQty', 'soParty', 'soNotes'].forEach(id => {
+  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
 }
@@ -630,3 +702,139 @@ function toast(msg, type = 'success') {
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 3500);
 }
+
+
+
+// ==============================
+// DORI LEDGER LOGIC
+// ==============================
+
+function renderDoriLedger() {
+  setText('dsIn',    doriTotalIn.toFixed(0));
+  setText('dsOut',   doriTotalOut.toFixed(0));
+  setText('dsAvail', doriAvailable.toFixed(0));
+
+  const tbody = document.getElementById('doriTable');
+  if (!tbody) return;
+
+  if (!doriRecords.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
+    return;
+  }
+
+  let running = 0;
+  const sorted = [...doriRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const rows = sorted.map(r => {
+    running += r.type === 'in' ? r.qty : -r.qty;
+    const bal = running;
+    return `<tr>
+      <td>${r.date}</td>
+      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
+      <td><b>${r.qty.toFixed(0)}</b></td>
+      <td>${r.party || '—'}</td>
+      <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
+      <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
+      <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(0)}</b></td>
+      <td><button onclick="showDeleteDoriModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows.reverse().join('');
+}
+
+function showDeleteDoriModal(id, qtyLabel, type) {
+  const modal = document.getElementById('deleteModal');
+  document.getElementById('delModalTitle').textContent = (type === 'in' ? '⬆️ Entry' : '⬇️ Exit') + ' delete karna chahte hain?';
+  document.getElementById('delModalDetail').textContent = 'Qty: ' + qtyLabel + ' — Google Sheet se bhi hata diya jaayega!';
+  modal.style.display = 'flex';
+  
+  document.getElementById('delConfirmBtn').onclick = async () => {
+    const btn = document.getElementById('delConfirmBtn');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Deleting...';
+    btn.disabled = true;
+
+    const res = await api('deleteRecord', { id });
+    
+    btn.innerHTML = oldText;
+    btn.disabled = false;
+    modal.style.display = 'none';
+
+    if (res && res.success) {
+      toast('✅ Dori record delete ho gaya!', 'success');
+      refreshData();
+    } else {
+      toast(res ? res.error : 'Delete nahi hua', 'error');
+    }
+  };
+  document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
+}
+
+async function submitDoriIn() {
+  const d = {
+    date:  document.getElementById('diDate').value,
+    qty:   parseFloat(document.getElementById('diQty').value) || 0,
+    party: document.getElementById('diParty').value.trim(),
+    notes: document.getElementById('diNotes').value.trim()
+  };
+  if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
+
+  const btn = document.getElementById('btnDI');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  const res = await api('addRecord', { ...d, item: 'Dhada', type: 'in' });
+  btn.textContent = '✅ Save Entry'; btn.disabled = false;
+
+  if (res && res.success) {
+    toast(`✅ ${d.qty} bundle entry saved!`, 'success');
+    resetDoriIn();
+    refreshData();
+  } else {
+    toast(res ? res.error : 'API error', 'error');
+  }
+}
+
+function resetDoriIn() {
+  ['diQty', 'diParty', 'diNotes'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.value = '';
+  });
+}
+
+function calcDoriExitValue() {
+  const q = parseFloat(document.getElementById('doQty').value) || 0;
+  const r = parseFloat(document.getElementById('doRate').value) || 0;
+  document.getElementById('doValue').value = q && r ? '₹' + fmt(q * r) : '';
+}
+
+async function submitDoriOut() {
+  const d = {
+    date:      document.getElementById('doDate').value,
+    qty:       parseFloat(document.getElementById('doQty').value) || 0,
+    party:     document.getElementById('doParty').value.trim(),
+    ratePerKg: parseFloat(document.getElementById('doRate').value) || 0,
+    notes:     document.getElementById('doNotes').value.trim()
+  };
+  if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
+  if (d.qty > doriAvailable) {
+    toast(`❌ Available dori sirf ${doriAvailable.toFixed(0)} bundle hai!`, 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnDO');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  const res = await api('addRecord', { ...d, item: 'Dhada', type: 'out' });
+  btn.textContent = '🔻 Save Exit'; btn.disabled = false;
+
+  if (res && res.success) {
+    toast(`✅ ${d.qty} bundle exit saved!`, 'success');
+    resetDoriOut();
+    refreshData();
+  } else {
+    toast(res ? res.error : 'API error', 'error');
+  }
+}
+
+function resetDoriOut() {
+  ['doQty', 'doParty', 'doRate', 'doNotes', 'doValue'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.value = '';
+  });
+}
+
