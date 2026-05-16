@@ -550,13 +550,19 @@ function resetSuthIn() {
 }
 
 // ===== SUTH EXIT =====
-function calcExitValue() {
-  const q = parseFloat(document.getElementById('soQty').value) || 0;
-  const r = parseFloat(document.getElementById('soRate').value) || 0;
-  document.getElementById('soValue').value = q && r ? '₹' + fmt(q * r) : '';
+function calcSuthExit() {
+  const m = parseFloat(document.getElementById('soMeters').value) || 0;
+  const rm = parseFloat(document.getElementById('soRatePerM').value) || 0;
+  const rk = parseFloat(document.getElementById('soRate').value) || 0;
+  
+  const totalKg = m * rm;
+  document.getElementById('soQty').value = totalKg > 0 ? totalKg.toFixed(3) : '';
+  document.getElementById('soValue').value = totalKg && rk ? '₹' + (totalKg * rk).toLocaleString('en-IN', {minimumFractionDigits:2}) : '';
 }
 
 async function submitSuthOut() {
+  const m = document.getElementById('soMeters').value;
+  const rm = document.getElementById('soRatePerM').value;
   const d = {
     date:      document.getElementById('soDate').value,
     qty:       parseFloat(document.getElementById('soQty').value) || 0,
@@ -564,15 +570,15 @@ async function submitSuthOut() {
     ratePerKg: parseFloat(document.getElementById('soRate').value) || 0,
     notes:     document.getElementById('soNotes').value.trim()
   };
-  if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
+  
+  if (!d.qty || d.qty <= 0) { toast('Quantity calculate nahi hui. Meters aur Rate check karein', 'error'); return; }
   if (d.qty > suthAvailable) {
     toast(`❌ Available suth sirf ${suthAvailable.toFixed(3)} kg hai!`, 'error');
     return;
   }
 
-  const meters = document.getElementById('soMeters').value;
   let finalNotes = d.notes;
-  if (meters) finalNotes = (finalNotes ? finalNotes + ' | ' : '') + meters + ' Meters';
+  if (m) finalNotes = (finalNotes ? finalNotes + ' | ' : '') + m + ' Mtr (@' + rm + ')';
 
   const btn = document.getElementById('btnSO');
   btn.textContent = 'Saving...'; btn.disabled = true;
@@ -580,16 +586,16 @@ async function submitSuthOut() {
   btn.textContent = '🔻 Save Exit'; btn.disabled = false;
 
   if (res && res.success) {
-    toast(`✅ ${d.qty} kg suth exit saved!`, 'success');
+    toast(`✅ ${d.qty.toFixed(3)} kg suth exit saved!`, 'success');
     resetSuthOut();
     refreshData();
   } else {
-    toast(res ? res.error : 'API error — Settings mein URL check karein', 'error');
+    toast(res ? res.error : 'API error', 'error');
   }
 }
 
 function resetSuthOut() {
-  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue', 'soMeters'].forEach(id => {
+  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue', 'soMeters', 'soRatePerM'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
 }
