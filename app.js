@@ -6,7 +6,7 @@
 const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbwLYNkzujbCNtv1wiwB1FfExzJEz4vPP6xym1HHQwvIrXhCpLdB08E89bNXdMGnPDH1/exec';
 
 let API = '', suthRecords = [], suthTotalIn = 0, suthTotalOut = 0, suthAvailable = 0, charts = {};
-let doriRecords = [], doriTotalIn = 0, doriTotalOut = 0, doriAvailable = 0;
+let dhagaRecords = [], dhagaTotalIn = 0, dhagaTotalOut = 0, dhagaAvailable = 0;
 
 // ===== INIT =====
 window.onload = () => {
@@ -23,7 +23,7 @@ window.onload = () => {
 const PAGES = {
   'dash':       'Dashboard',
   'suth-stock': 'Suth Ledger',
-  'dori-stock': 'Dori Ledger',
+  'dhaga-stock': 'Dhaga Ledger',
   'suth':       'Suth Calculator',
   'settings':   'Settings'
 };
@@ -296,12 +296,12 @@ async function refreshData(silent = false) {
                 suthRecords = c.data || [];
         suthTotalIn = c.totalIn || 0; suthTotalOut = c.totalOut || 0; suthAvailable = c.available || 0;
         
-        const dc = c.dori ? c.dori : {data:[],totalIn:0,totalOut:0,available:0};
-        doriRecords = dc.data || [];
-        doriTotalIn = dc.totalIn || 0; doriTotalOut = dc.totalOut || 0; doriAvailable = dc.available || 0;
+        const dc = c.dhaga ? c.dhaga : {data:[],totalIn:0,totalOut:0,available:0};
+        dhagaRecords = dc.data || [];
+        dhagaTotalIn = dc.totalIn || 0; dhagaTotalOut = dc.totalOut || 0; dhagaAvailable = dc.available || 0;
         
         renderDash(); renderSuthLedger(); updateAvailInfo();
-        renderDoriLedger();
+        renderDhagaLedger();
       } catch (e) {}
     } else {
       // First time load indicator
@@ -318,16 +318,16 @@ async function refreshData(silent = false) {
     suthTotalOut = res.suth.totalOut   || 0;
     suthAvailable= res.suth.available  || 0;
 
-    doriRecords  = res.dori.data       || [];
-    doriTotalIn  = res.dori.totalIn    || 0;
-    doriTotalOut = res.dori.totalOut   || 0;
-    doriAvailable= res.dori.available  || 0;
+    dhagaRecords  = res.dhaga.data       || [];
+    dhagaTotalIn  = res.dhaga.totalIn    || 0;
+    dhagaTotalOut = res.dhaga.totalOut   || 0;
+    dhagaAvailable= res.dhaga.available  || 0;
 
     localStorage.setItem('mt_suth_data', JSON.stringify(res)); // Save to cache
   }
   renderDash();
   renderSuthLedger();
-  renderDoriLedger();
+  renderDhagaLedger();
   updateAvailInfo();
 }
 
@@ -337,9 +337,9 @@ function renderDash() {
   setText('dOut',   suthTotalOut.toFixed(3)  + ' kg');
   setText('dAvail', suthAvailable.toFixed(3) + ' kg');
   
-  setText('ddIn',    doriTotalIn.toFixed(0));
-  setText('ddOut',   doriTotalOut.toFixed(0));
-  setText('ddAvail', doriAvailable.toFixed(0));
+  setText('ddIn',    dhagaTotalIn.toFixed(0));
+  setText('ddOut',   dhagaTotalOut.toFixed(0));
+  setText('ddAvail', dhagaAvailable.toFixed(0));
 
   buildPieChart();
   buildDhagaPieChart();
@@ -390,10 +390,10 @@ function buildDhagaPieChart() {
   const ctx = document.getElementById('dPie'); if (!ctx) return;
   if (charts.dPie) { charts.dPie.destroy(); }
 
-  const hasData = doriTotalIn > 0 || doriTotalOut > 0;
-  const inV = hasData ? doriTotalIn : 1;
-  const outV = hasData ? doriTotalOut : 0;
-  const availV = hasData ? doriAvailable : 1;
+  const hasData = dhagaTotalIn > 0 || dhagaTotalOut > 0;
+  const inV = hasData ? dhagaTotalIn : 1;
+  const outV = hasData ? dhagaTotalOut : 0;
+  const availV = hasData ? dhagaAvailable : 1;
 
   const dataArr = hasData ? [inV, outV, availV] : [1, 0, 1];
   const colors = hasData ? ['#2ec08b', '#e05260', '#c9a84c'] : ['rgba(46,192,139,.1)', 'rgba(224,82,96,.1)', 'rgba(201,168,76,.1)'];
@@ -428,7 +428,7 @@ function buildFeed() {
   const tbody = document.getElementById('feed');
   const allRecs = [
     ...suthRecords.map(r => ({...r, item: '🧵 Suth', qFmt: r.qty.toFixed(3) + ' kg'})),
-    ...doriRecords.map(r => ({...r, item: '🧶 Dhaga', qFmt: r.qty.toFixed(0) + ' Bndl'}))
+    ...dhagaRecords.map(r => ({...r, item: '🧶 Dhaga', qFmt: r.qty.toFixed(0) + ' Bndl'}))
   ];
   const sorted = allRecs.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 10);
   
@@ -516,7 +516,7 @@ function updateAvailInfo() {
   if (el) el.textContent = `🧵 Available Suth: ${suthAvailable.toFixed(3)} kg — is se zyada exit nahi ho sakta`;
   
   const doEl = document.getElementById('doAvailInfo');
-  if (doEl) doEl.textContent = `🧶 Available Dhaga: ${doriAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
+  if (doEl) doEl.textContent = `🧶 Available Dhaga: ${dhagaAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
 }
 
 // ===== SUTH ENTRY =====
@@ -570,9 +570,13 @@ async function submitSuthOut() {
     return;
   }
 
+  const meters = document.getElementById('soMeters').value;
+  let finalNotes = d.notes;
+  if (meters) finalNotes = (finalNotes ? finalNotes + ' | ' : '') + meters + ' Meters';
+
   const btn = document.getElementById('btnSO');
   btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Suth', type: 'out' });
+  const res = await api('addRecord', { ...d, notes: finalNotes, item: 'Suth', type: 'out' });
   btn.textContent = '🔻 Save Exit'; btn.disabled = false;
 
   if (res && res.success) {
@@ -585,7 +589,7 @@ async function submitSuthOut() {
 }
 
 function resetSuthOut() {
-  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue'].forEach(id => {
+  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue', 'soMeters'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
 }
@@ -715,21 +719,21 @@ function toast(msg, type = 'success') {
 // DORI LEDGER LOGIC
 // ==============================
 
-function renderDoriLedger() {
-  setText('dsIn',    doriTotalIn.toFixed(0));
-  setText('dsOut',   doriTotalOut.toFixed(0));
-  setText('dsAvail', doriAvailable.toFixed(0));
+function renderDhagaLedger() {
+  setText('dsIn',    dhagaTotalIn.toFixed(0));
+  setText('dsOut',   dhagaTotalOut.toFixed(0));
+  setText('dsAvail', dhagaAvailable.toFixed(0));
 
-  const tbody = document.getElementById('doriTable');
+  const tbody = document.getElementById('dhagaTable');
   if (!tbody) return;
 
-  if (!doriRecords.length) {
+  if (!dhagaRecords.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
     return;
   }
 
   let running = 0;
-  const sorted = [...doriRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...dhagaRecords].sort((a, b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
     running += r.type === 'in' ? r.qty : -r.qty;
     const bal = running;
@@ -775,7 +779,7 @@ function showDeleteDhagaModal(id, qtyLabel, type) {
   document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
 }
 
-async function submitDoriIn() {
+async function submitDhagaIn() {
   const d = {
     date:  document.getElementById('diDate').value,
     qty:   parseFloat(document.getElementById('diQty').value) || 0,
@@ -791,26 +795,26 @@ async function submitDoriIn() {
 
   if (res && res.success) {
     toast(`✅ ${d.qty} bundle entry saved!`, 'success');
-    resetDoriIn();
+    resetDhagaIn();
     refreshData();
   } else {
     toast(res ? res.error : 'API error', 'error');
   }
 }
 
-function resetDoriIn() {
+function resetDhagaIn() {
   ['diQty', 'diParty', 'diNotes'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });
 }
 
-function calcDoriExitValue() {
+function calcDhagaExitValue() {
   const q = parseFloat(document.getElementById('doQty').value) || 0;
   const r = parseFloat(document.getElementById('doRate').value) || 0;
   document.getElementById('doValue').value = q && r ? '₹' + fmt(q * r) : '';
 }
 
-async function submitDoriOut() {
+async function submitDhagaOut() {
   const d = {
     date:      document.getElementById('doDate').value,
     qty:       parseFloat(document.getElementById('doQty').value) || 0,
@@ -819,8 +823,8 @@ async function submitDoriOut() {
     notes:     document.getElementById('doNotes').value.trim()
   };
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
-  if (d.qty > doriAvailable) {
-    toast(`❌ Available dori sirf ${doriAvailable.toFixed(0)} bundle hai!`, 'error');
+  if (d.qty > dhagaAvailable) {
+    toast(`❌ Available dhaga sirf ${dhagaAvailable.toFixed(0)} bundle hai!`, 'error');
     return;
   }
 
@@ -831,14 +835,14 @@ async function submitDoriOut() {
 
   if (res && res.success) {
     toast(`✅ ${d.qty} bundle exit saved!`, 'success');
-    resetDoriOut();
+    resetDhagaOut();
     refreshData();
   } else {
     toast(res ? res.error : 'API error', 'error');
   }
 }
 
-function resetDoriOut() {
+function resetDhagaOut() {
   ['doQty', 'doParty', 'doRate', 'doNotes', 'doValue'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = '';
   });

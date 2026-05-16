@@ -93,17 +93,17 @@ function getRecords() {
   }));
 
   const suthData = data.filter(r => r.item === 'Suth');
-  const doriData = data.filter(r => r.item === 'Dhaga');
+  const dhagaData = data.filter(r => r.item === 'Dhaga');
 
   const sIn = suthData.filter(r => r.type === 'in').reduce((s, r) => s + r.qty, 0);
   const sOut= suthData.filter(r => r.type === 'out').reduce((s, r) => s + r.qty, 0);
-  const dIn = doriData.filter(r => r.type === 'in').reduce((s, r) => s + r.qty, 0);
-  const dOut= doriData.filter(r => r.type === 'out').reduce((s, r) => s + r.qty, 0);
+  const dIn = dhagaData.filter(r => r.type === 'in').reduce((s, r) => s + r.qty, 0);
+  const dOut= dhagaData.filter(r => r.type === 'out').reduce((s, r) => s + r.qty, 0);
 
   return {
     success: true,
     suth: { data: suthData, totalIn: sIn, totalOut: sOut, available: sIn - sOut },
-    dori: { data: doriData, totalIn: dIn, totalOut: dOut, available: dIn - dOut }
+    dhaga: { data: dhagaData, totalIn: dIn, totalOut: dOut, available: dIn - dOut }
   };
 }
 
