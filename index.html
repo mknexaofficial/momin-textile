@@ -449,15 +449,21 @@ select.fi option{background:var(--bg2)}
           <div class="cb">
             <div class="frow">
               <div class="fg"><label>Date *</label><input type="date" id="doDate" class="fi"></div>
-              <div class="fg"><label>Qty (Bundle) *</label><input type="number" id="doQty" class="fi" placeholder="e.g. 10"></div>
+              <div class="fg"><label>Qty (Bundle) *</label><input type="number" id="doQty" class="fi" placeholder="e.g. 10" oninput="calcDhagaExit()"></div>
             </div>
-            <div class="fg"><label>Supplier / Party</label><input type="text" id="doParty" class="fi" placeholder="e.g. Raju Wala"></div>
-            <div class="fg"><label>Total Amount (₹)</label><input type="number" id="doRate" class="fi" placeholder="e.g. 500"></div>
+            <div class="frow">
+              <div class="fg"><label>Miter / Bundle</label><input type="number" id="doRatePerM" class="fi" placeholder="e.g. 12" oninput="calcDhagaExit()"></div>
+              <div class="fg"><label>Total Miter</label><input type="number" id="doMeters" class="fi" placeholder="auto"></div>
+            </div>
+            <div class="frow">
+              <div class="fg"><label>Supplier / Party</label><input type="text" id="doParty" class="fi" placeholder="e.g. Raju Wala"></div>
+              <div class="fg"><label>Total Amount (₹)</label><input type="number" id="doRate" class="fi" placeholder="e.g. 500"></div>
+            </div>
             <div class="fg"><label>Notes</label><input type="text" id="doNotes" class="fi"></div>
             <div class="infoline" id="doAvailInfo">🧶 Available: — Bundle</div>
           </div>
           <div class="brow">
-            <button class="btn bg2b bsm" onclick="['doQty','doParty','doRate','doNotes'].forEach(id=>{let e=document.getElementById(id);if(e)e.value=''})">Clear</button>
+            <button class="btn bg2b bsm" onclick="['doQty','doParty','doRate','doNotes','doRatePerM','doMeters'].forEach(id=>{let e=document.getElementById(id);if(e)e.value=''})">Clear</button>
             <button class="btn bd" id="btnDO" onclick="submitDhagaOut()">🔻 Save Exit</button>
           </div>
         </div>
@@ -485,8 +491,8 @@ select.fi option{background:var(--bg2)}
         <div class="ch"><h3>📋 Dhaga Ledger</h3></div>
         <div class="tw">
           <table>
-            <thead><tr><th>Date</th><th>Type</th><th>Qty (Bndl)</th><th>Party</th><th>Amount (₹)</th><th>Balance</th><th>Action</th></tr></thead>
-            <tbody id="dhagaTable"><tr><td colspan="7" style="text-align:center;padding:22px;color:var(--tm)">Loading...</td></tr></tbody>
+            <thead><tr><th>Date</th><th>Type</th><th>Miter</th><th>Qty (Bndl)</th><th>Party</th><th>Amount (₹)</th><th>Balance</th><th>Action</th></tr></thead>
+            <tbody id="dhagaTable"><tr><td colspan="8" style="text-align:center;padding:22px;color:var(--tm)">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -524,7 +530,7 @@ select.fi option{background:var(--bg2)}
       <div class="card">
         <div class="ch">
           <h3>👥 Party Wise Hisaab</h3>
-          <span style="font-size:11px;color:var(--tm)">🟡 Humara baaki • 🔴 Hamein dena</span>
+          <span style="font-size:11px;color:var(--tm)">🟡 Apne paas jama • 🔴 Hamne diya</span>
         </div>
         <div class="cb" style="padding:14px">
           <div id="partyCards"><div style="text-align:center;padding:24px;color:var(--tm)">Loading...</div></div>
