@@ -430,7 +430,7 @@ async function submitSuthOut() {
   const meters = parseFloat(document.getElementById('soMeters').value)    || 0;
   const rm     = parseFloat(document.getElementById('soRatePerM').value)   || 0;
   const qty    = parseFloat(document.getElementById('soQty').value)        || 0;
-  if (!qty || qty <= 0) { toast('Pehle Meters aur Suth/Meter rate dalein', 'error'); return; }
+  if (!qty || qty <= 0) { toast('Suth ki Quantity (KG) dalein', 'error'); return; }
   if (qty > suthAvailable) {
     toast(`❌ Available suth sirf ${suthAvailable.toFixed(3)} kg hai!`, 'error'); return;
   }
@@ -586,11 +586,11 @@ function renderTransactions() {
         const bal = p.balance;
         const isPositive = bal >= 0; // Received > Paid → Unke paas hamara paisa hai (ya settle hai)
         const balLabel = bal > 0
-          ? `🟡 Humara paisa baaki: ₹${fmt(bal)}`
+          ? `🟡 Apne paas jama (Advance): ₹${fmt(bal)}`
           : bal < 0
-            ? `🔴 Hamein dena hai: ₹${fmt(Math.abs(bal))}`
+            ? `🔴 Paisa lena baaki (Udhaar): ₹${fmt(Math.abs(bal))}`
             : `✅ Hisaab saaf!`;
-        const balColor = bal > 0 ? 'var(--war)' : bal < 0 ? 'var(--dan)' : 'var(--suc)';
+        const balColor = bal > 0 ? 'var(--suc)' : bal < 0 ? 'var(--dan)' : 'var(--tm)';
         return `
         <div style="background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:.2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--brd)'">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
