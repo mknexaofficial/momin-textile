@@ -1,238 +1,173 @@
 // ================================================================
-// Momin Textile — Suth Manager (app.js)
+// Momin Textile Manager — app.js v2.0
+// Features: Password Auth | Meters in Suth | Transaction System
 // ================================================================
 
-// ✅ HARDCODED API URL — har device par automatically kaam karega
-const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbwLYNkzujbCNtv1wiwB1FfExzJEz4vPP6xym1HHQwvIrXhCpLdB08E89bNXdMGnPDH1/exec';
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycby8voqrQPijw3X257GY2m_7u9pRtrOk02m58_wsbMQ-hDpPsz0rhI_ugOxELhB4bSfV/exec';
+let API = '';
 
-let API = '', suthRecords = [], suthTotalIn = 0, suthTotalOut = 0, suthAvailable = 0, charts = {};
+// ===== STATE =====
+let suthRecords = [], suthTotalIn = 0, suthTotalOut = 0, suthAvailable = 0, suthTotalMeters = 0;
 let dhagaRecords = [], dhagaTotalIn = 0, dhagaTotalOut = 0, dhagaAvailable = 0;
+let txnRecords = [], txnParties = [];
+let charts = {};
+
+// ===== PAGES =====
+const PAGES = {
+  'dash':        '📊 Dashboard',
+  'suth-stock':  '🧵 Suth Ledger',
+  'dhaga-stock': '🧶 Dhaga Ledger',
+  'hisaab':      '💰 Hisaab (Transactions)',
+  'suth':        '🧮 Suth Calculator',
+  'settings':    '⚙️ Settings'
+};
+let currentPage = 'dash';
 
 // ===== INIT =====
 window.onload = () => {
   loadSettings();
   const today = new Date().toISOString().split('T')[0];
-  ['siDate', 'soDate', 'diDate', 'doDate'].forEach(id => { const e = document.getElementById(id); if (e) e.value = today; });
-  setInterval(() => { const e = document.getElementById('clock'); if (e) e.textContent = new Date().toLocaleString('en-IN'); }, 1000);
+  ['siDate','soDate','diDate','doDate','txnDate'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.value = today;
+  });
+  setInterval(() => {
+    const e = document.getElementById('clock');
+    if (e) e.textContent = new Date().toLocaleString('en-IN');
+  }, 1000);
   showPage('dash');
   checkSession();
   refreshData();
 };
 
-// ===== NAVIGATION + BACK BUTTON =====
-const PAGES = {
-  'dash':       'Dashboard',
-  'suth-stock': 'Suth Ledger',
-  'dhaga-stock': 'Dhaga Ledger',
-  'suth':       'Suth Calculator',
-  'settings':   'Settings'
-};
-
-let currentPage = 'dash';
-
-function showPage(id, pushHistory = true) {
-  // Hide all pages
-  document.querySelectorAll('.pg').forEach(p => {
-    p.style.display = 'none';
-    p.classList.remove('active');
-  });
-
-  // Show target page with animation
+// ===== NAVIGATION =====
+function showPage(id) {
+  document.querySelectorAll('.pg').forEach(p => { p.style.display='none'; p.classList.remove('active'); });
   const pg = document.getElementById('pg-' + id);
-  if (pg) {
-    pg.style.display = 'block';
-    // Force reflow then add animation class
-    void pg.offsetWidth;
-    pg.classList.add('active');
-  }
-
-  // Update title
+  if (pg) { pg.style.display='block'; void pg.offsetWidth; pg.classList.add('active'); }
   const t = document.getElementById('pageTitle');
   if (t) t.textContent = PAGES[id] || id;
-
-  // Update nav active state — sidebar
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const sn = document.getElementById('nav-' + id);
-  if (sn) sn.classList.add('active');
-
-  // Update bottom nav
+  const sn = document.getElementById('nav-' + id); if (sn) sn.classList.add('active');
   document.querySelectorAll('.bn').forEach(b => b.classList.remove('active'));
-  const bn = document.getElementById('bn-' + id);
-  if (bn) bn.classList.add('active');
-
-  // Close sidebar on mobile
+  const bn = document.getElementById('bn-' + id); if (bn) bn.classList.add('active');
   const sb = document.getElementById('sidebar');
   const ov = document.getElementById('overlay');
-  if (sb && window.innerWidth <= 768) {
-    sb.classList.remove('open');
-    if (ov) ov.style.display = 'none';
-  }
-
-  // History API — enables browser/Android back button
-  if (pushHistory) {
-    history.pushState({ page: id }, '', '#' + id);
-  }
-
+  if (sb && window.innerWidth <= 768) { sb.classList.remove('open'); if (ov) ov.style.display='none'; }
+  if (id === 'hisaab') renderTransactions();
+  history.pushState({ page: id }, '', '#' + id);
   currentPage = id;
 }
 
-// Handle browser back/forward button
-window.addEventListener('popstate', (e) => {
+window.addEventListener('popstate', e => {
   const page = (e.state && e.state.page) || 'dash';
-  showPage(page, false); // false = don't push again
+  showPage(page);
 });
 
-// ===== MULTI-DEVICE: Auto-refresh when tab becomes visible =====
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    // User switched back to this tab/app — refresh data silently
-    refreshData();
-  }
-});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshData(true); });
 
-// ===== PIN + SESSION =====
+// ===== AUTH — PASSWORD SYSTEM =====
 const SESSION_KEY = 'mt_session';
-const SESSION_HOURS = 12; // auto-logout after 12 hours
-let pinEntry = '';
+const SESSION_HOURS = 12;
 
 function checkSession() {
   const s = localStorage.getItem(SESSION_KEY);
   if (s) {
-    const { time } = JSON.parse(s);
-    if (Date.now() - time < SESSION_HOURS * 3600000) {
-      unlockApp(); return;
-    }
+    try {
+      const { time } = JSON.parse(s);
+      if (Date.now() - time < SESSION_HOURS * 3600000) { unlockApp(); return; }
+    } catch(e) {}
   }
-  // Show PIN screen
-  loadPinScreen();
+  showPasswordScreen();
 }
 
-function loadPinScreen() {
+function showPasswordScreen() {
   const logo    = localStorage.getItem('mt_logo');
   const company = localStorage.getItem('mt_company') || 'Momin Textile';
+  const el = document.getElementById('pinCompany'); if (el) el.textContent = company;
   const pl = document.getElementById('pinLogo');
-  const pc = document.getElementById('pinCompany');
-  if (pc) pc.textContent = company;
-  if (pl) pl.innerHTML = logo ? `<img src="${logo}">` : '🧵';
-  // Reset and focus
-  const inp = document.getElementById('pinReal');
+  if (pl) pl.innerHTML = logo ? `<img src="${logo}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">` : '🧵';
+  const inp = document.getElementById('passInput');
   if (inp) { inp.value = ''; inp.focus(); }
-  pinEntry = '';
-  updatePinDots();
+  const ps = document.getElementById('pinScreen');
+  if (ps) { ps.style.display='flex'; ps.style.opacity='1'; }
+  const err = document.getElementById('pinErr'); if (err) err.textContent = '';
+}
+
+function togglePassVis() {
+  const inp = document.getElementById('passInput');
+  const btn = document.getElementById('passEye');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text'; if (btn) btn.textContent = '🙈';
+  } else {
+    inp.type = 'password'; if (btn) btn.textContent = '👁️';
+  }
+}
+
+function onPassInput(e) {
   const err = document.getElementById('pinErr');
   if (err) err.textContent = '';
+  if (e.key === 'Enter') checkPassword();
 }
 
-// Single source of truth — only called by the real input's oninput event
-function onPinInput(inp) {
-  const val = inp.value.replace(/\D/g, '').slice(0, 4);
-  inp.value = val;   // strip non-digits
-  pinEntry  = val;
-  updatePinDots();
-  document.getElementById('pinErr').textContent = '';
-  if (pinEntry.length === 4) setTimeout(checkPin, 150);
-}
-
-function updatePinDots() {
-  for (let i = 0; i < 4; i++) {
-    const c = document.getElementById('pc' + i);
-    if (c) c.classList.toggle('on', i < pinEntry.length);
-  }
-}
-
-// Ensure PC users can just type without clicking
-document.addEventListener('keydown', (e) => {
-  const ps = document.getElementById('pinScreen');
-  if (ps && ps.style.display !== 'none' && ps.style.opacity !== '0') {
-    const inp = document.getElementById('pinReal');
-    if (inp && document.activeElement !== inp && /^[0-9]$/.test(e.key)) {
-      inp.focus();
-      inp.value += e.key;
-      e.preventDefault(); // Prevent duplicate typing if browser focuses fast enough
-      onPinInput(inp);
-    }
-  }
-});
-
-function checkPin() {
-  const stored = localStorage.getItem('mt_pin') || '1234';
-  if (pinEntry === stored) {
+function checkPassword() {
+  const inp = document.getElementById('passInput');
+  if (!inp) return;
+  const entered = inp.value;
+  const stored  = localStorage.getItem('mt_pass') || '1234';
+  if (entered === stored) {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ time: Date.now() }));
-    // PRO SUCCESS ANIMATION
-    for (let i = 0; i < 4; i++) {
-      const c = document.getElementById('pc' + i);
-      if (c) {
-        c.style.background = 'var(--suc)';
-        c.style.transform = 'scale(1.4)';
-        c.style.boxShadow = '0 0 15px var(--suc)';
-      }
-    }
-    setTimeout(unlockApp, 400); // smooth delay
+    const ps = document.getElementById('pinScreen');
+    if (ps) { ps.style.opacity='0'; ps.style.transition='opacity 0.4s'; setTimeout(()=>{ ps.style.display='none'; },400); }
   } else {
-    document.getElementById('pinErr').textContent = '❌ Wrong PIN — try again';
-    const inp = document.getElementById('pinReal');
-    if (inp) { inp.value = ''; inp.focus(); }
-    pinEntry = '';
-    updatePinDots();
-    // Shake
+    const err = document.getElementById('pinErr');
+    if (err) err.textContent = '❌ Wrong password — try again';
+    inp.value = ''; inp.focus();
     const box = document.querySelector('.pin-box');
     if (box) {
-      box.style.transition = 'transform .08s';
-      const seq = [-10, 10, -8, 8, 0];
-      seq.forEach((v, i) => setTimeout(() => { box.style.transform = `translateX(${v}px)`; }, i * 80));
+      const seq = [-10,10,-8,8,0];
+      seq.forEach((v,i) => setTimeout(()=>{ box.style.transform=`translateX(${v}px)`; },i*80));
     }
   }
 }
 
 function unlockApp() {
   const ps = document.getElementById('pinScreen');
-  if (ps) {
-    ps.style.opacity = '0';
-    ps.style.transition = 'opacity 0.4s ease';
-    setTimeout(() => { ps.style.display = 'none'; }, 400);
-  }
+  if (ps) { ps.style.display='none'; }
 }
 
 function doLogout() {
   localStorage.removeItem(SESSION_KEY);
-  pinEntry = '';
-  loadPinScreen();
-  const ps = document.getElementById('pinScreen');
-  if (ps) ps.style.display = 'flex';
+  showPasswordScreen();
   toast('Logged out 🔒', 'success');
 }
 
 // ===== SETTINGS =====
 function loadSettings() {
-  // API always uses DEFAULT (hardcoded) — no user input needed
   API = DEFAULT_API;
   const company = localStorage.getItem('mt_company') || 'Momin Textile';
   const c = document.getElementById('settCompany'); if (c) c.value = company;
   const t = localStorage.getItem('mt_theme') || 'dark';
-  if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  if (t === 'light') document.documentElement.setAttribute('data-theme','light');
   applyLogo();
   const sc = document.getElementById('sidebarCompany'); if (sc) sc.textContent = company;
 }
 
 function saveSettings() {
-  API = (document.getElementById('settApiUrl').value || '').trim();
-  localStorage.setItem('mt_api', API);
-  const company = document.getElementById('settCompany').value || 'Momin Textile';
+  const company = (document.getElementById('settCompany').value || '').trim() || 'Momin Textile';
   localStorage.setItem('mt_company', company);
   const sc = document.getElementById('sidebarCompany'); if (sc) sc.textContent = company;
-  // PIN change
-  const np = document.getElementById('settNewPin').value;
-  const cp = document.getElementById('settConfirmPin').value;
+  const np = (document.getElementById('settNewPass').value || '').trim();
+  const cp = (document.getElementById('settConfPass').value || '').trim();
   if (np) {
-    if (np.length !== 4 || !/^[0-9]+$/.test(np)) { toast('PIN 4 digits ka hona chahiye', 'error'); return; }
-    if (np !== cp) { toast('PIN match nahi kiya — dobara check karein', 'error'); return; }
-    localStorage.setItem('mt_pin', np);
-    document.getElementById('settNewPin').value = '';
-    document.getElementById('settConfirmPin').value = '';
-    toast('PIN change ho gaya! 🔒', 'success');
+    if (np.length < 4) { toast('Password kam se kam 4 characters ka hona chahiye', 'error'); return; }
+    if (np !== cp) { toast('Passwords match nahi kiye — dobara check karein', 'error'); return; }
+    localStorage.setItem('mt_pass', np);
+    document.getElementById('settNewPass').value = '';
+    document.getElementById('settConfPass').value = '';
+    toast('Password change ho gaya! 🔒', 'success');
   }
   toast('Settings saved ✅', 'success');
-  refreshData();
 }
 
 // ===== LOGO =====
@@ -241,8 +176,8 @@ function applyLogo() {
   const wrap = document.getElementById('sidebarLogoWrap');
   const prev = document.getElementById('logoPreview');
   if (logo) {
-    if (wrap) wrap.innerHTML = `<img class="slogo-img" src="${logo}">`;
-    if (prev) prev.innerHTML = `<img src="${logo}">`;
+    if (wrap) wrap.innerHTML = `<img class="slogo-img" src="${logo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">`;
+    if (prev) prev.innerHTML = `<img src="${logo}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">`;
   } else {
     if (wrap) wrap.innerHTML = '🧵';
     if (prev) prev.innerHTML = '🧵';
@@ -250,14 +185,13 @@ function applyLogo() {
 }
 
 function uploadLogo(input) {
-  const file = input.files[0];
-  if (!file) return;
+  const file = input.files[0]; if (!file) return;
   if (file.size > 500000) { toast('Logo 500KB se chota hona chahiye', 'error'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     localStorage.setItem('mt_logo', e.target.result);
     applyLogo();
-    loadPinScreen();
+    showPasswordScreen();
     toast('Logo upload ho gaya ✅', 'success');
   };
   reader.readAsDataURL(file);
@@ -266,159 +200,142 @@ function uploadLogo(input) {
 function removeLogo() {
   localStorage.removeItem('mt_logo');
   applyLogo();
-  loadPinScreen();
   toast('Logo remove ho gaya', 'success');
 }
 
-// ===== API CALL =====
+// ===== THEME =====
+function toggleTheme() {
+  const cur  = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('mt_theme', next);
+  setText('themeIcon', next === 'dark' ? '🌙' : '☀️');
+}
+
+// ===== SIDEBAR =====
+function toggleSB() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('overlay');
+  const open = !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  if (ov) ov.style.display = open ? 'block' : 'none';
+}
+
+// ===== API =====
 async function api(action, data = {}) {
-  if (!API) { document.getElementById('offlineBar').style.display = 'block'; return null; }
+  const bar = document.getElementById('offlineBar');
+  if (!API) { if (bar) bar.style.display='block'; return null; }
   try {
     const url = `${API}?action=${action}&data=${encodeURIComponent(JSON.stringify(data))}`;
-    const res = await fetch(url);
+    const res  = await fetch(url);
     const json = await res.json();
-    document.getElementById('offlineBar').style.display = 'none';
+    if (bar) bar.style.display='none';
     return json;
-  } catch (e) {
-    document.getElementById('offlineBar').style.display = 'block';
+  } catch(e) {
+    if (bar) bar.style.display='block';
     return null;
   }
 }
 
-// ===== REFRESH DATA (With Fast Local Cache) =====
+// ===== REFRESH =====
 async function refreshData(silent = false) {
-  // Show initial loading state if no cache
-  if (!silent && suthRecords.length === 0) {
-    const cached = localStorage.getItem('mt_suth_data');
-    if (cached) {
-      try {
-        const c = JSON.parse(cached);
-                suthRecords = c.data || [];
-        suthTotalIn = c.totalIn || 0; suthTotalOut = c.totalOut || 0; suthAvailable = c.available || 0;
-        
-        const dc = c.dhaga ? c.dhaga : {data:[],totalIn:0,totalOut:0,available:0};
-        dhagaRecords = dc.data || [];
-        dhagaTotalIn = dc.totalIn || 0; dhagaTotalOut = dc.totalOut || 0; dhagaAvailable = dc.available || 0;
-        
-        renderDash(); renderSuthLedger(); updateAvailInfo();
-        renderDhagaLedger();
-      } catch (e) {}
-    } else {
-      // First time load indicator
-      document.getElementById('dIn').textContent = 'Loading...';
-      document.getElementById('dOut').textContent = 'Loading...';
-      document.getElementById('dAvail').textContent = 'Loading...';
-    }
+  // Load transactions in parallel with records for speed
+  const [res, txnRes] = await Promise.all([
+    api('getRecords'),
+    api('getTransactions')
+  ]);
+  if (txnRes && txnRes.success) {
+    txnRecords = txnRes.data    || [];
+    txnParties = txnRes.parties || [];
   }
+  // Fake res reference so below code works unchanged
+  const _res = res;
+  if (_res && _res.success) {
+    const res = _res;
+    // Parse meters from old records (stored in notes as "12037 Mtr (@0.05874)")
+    const parseMtrs = records => records.map(r => {
+      if (r.meters === 0 && r.type === 'out' && r.notes) {
+        const match = r.notes.match(/([\d.]+)\s*Mtr/i);
+        if (match) r.meters = parseFloat(match[1]) || 0;
+      }
+      return r;
+    });
 
-  const res = await api('getRecords');
-  if (res && res.success) {
-    suthRecords  = res.suth.data       || [];
-    suthTotalIn  = res.suth.totalIn    || 0;
-    suthTotalOut = res.suth.totalOut   || 0;
-    suthAvailable= res.suth.available  || 0;
+    suthRecords     = parseMtrs(res.suth.data || []);
+    suthTotalIn     = res.suth.totalIn    || 0;
+    suthTotalOut    = res.suth.totalOut   || 0;
+    suthAvailable   = res.suth.available  || 0;
+    // Recalculate totalMeters including parsed old records
+    suthTotalMeters = suthRecords.filter(r => r.type === 'out').reduce((s, r) => s + (r.meters || 0), 0);
 
-    dhagaRecords  = res.dhaga.data       || [];
-    dhagaTotalIn  = res.dhaga.totalIn    || 0;
-    dhagaTotalOut = res.dhaga.totalOut   || 0;
-    dhagaAvailable= res.dhaga.available  || 0;
+    dhagaRecords    = res.dhaga.data      || [];
+    dhagaTotalIn    = res.dhaga.totalIn   || 0;
+    dhagaTotalOut   = res.dhaga.totalOut  || 0;
+    dhagaAvailable  = res.dhaga.available || 0;
 
-    localStorage.setItem('mt_suth_data', JSON.stringify(res)); // Save to cache
+    localStorage.setItem('mt_cache', JSON.stringify(res));
   }
   renderDash();
   renderSuthLedger();
   renderDhagaLedger();
   updateAvailInfo();
+  // Re-render Hisaab if visible
+  if (currentPage === 'hisaab') renderTransactions();
 }
 
 // ===== DASHBOARD =====
 function renderDash() {
-  setText('dIn',    suthTotalIn.toFixed(3)   + ' kg');
-  setText('dOut',   suthTotalOut.toFixed(3)  + ' kg');
-  setText('dAvail', suthAvailable.toFixed(3) + ' kg');
-  
-  setText('ddIn',    dhagaTotalIn.toFixed(0));
-  setText('ddOut',   dhagaTotalOut.toFixed(0));
-  setText('ddAvail', dhagaAvailable.toFixed(0));
+  setText('dIn',      suthTotalIn.toFixed(3)    + ' kg');
+  setText('dOut',     suthTotalOut.toFixed(3)   + ' kg');
+  setText('dAvail',   suthAvailable.toFixed(3)  + ' kg');
+  setText('dMeters',  suthTotalMeters.toFixed(1) + ' m');
 
-  buildPieChart();
-  buildDhagaPieChart();
+  setText('ddIn',    dhagaTotalIn.toFixed(0)   + ' Bndl');
+  setText('ddOut',   dhagaTotalOut.toFixed(0)  + ' Bndl');
+  setText('ddAvail', dhagaAvailable.toFixed(0) + ' Bndl');
+
+  buildSuthChart();
+  buildDhagaChart();
   buildFeed();
 }
 
-function buildPieChart() {
+function buildSuthChart() {
   const ctx = document.getElementById('cPie'); if (!ctx) return;
-  if (charts.pie) { charts.pie.destroy(); }
-
+  if (charts.suth) { charts.suth.destroy(); }
   const hasData = suthTotalIn > 0 || suthTotalOut > 0;
-  const inV = hasData ? suthTotalIn : 1;
-  const outV = hasData ? suthTotalOut : 0;
-  const availV = hasData ? suthAvailable : 1;
-
-  // Sections: [Total In, Total Out, Available]
-  // Note: Total In = Total Out + Available, so Total In will be 50% of the pie.
-  const dataArr = hasData ? [inV, outV, availV] : [1, 0, 1];
-  const colors = hasData ? ['#3498db', '#e05260', '#c9a84c'] : ['rgba(52,152,219,.1)', 'rgba(224,82,96,.1)', 'rgba(201,168,76,.1)'];
-
-  charts.pie = new Chart(ctx, {
+  const dataArr = hasData ? [suthTotalIn, suthTotalOut, suthAvailable] : [1,0,1];
+  const colors  = hasData
+    ? ['#3498db','#e05260','#c9a84c']
+    : ['rgba(52,152,219,.12)','rgba(224,82,96,.12)','rgba(201,168,76,.12)'];
+  charts.suth = new Chart(ctx, {
     type: 'doughnut',
-    data: {
-      labels: ['Total Aaya (In)', 'Total Gaya (Out)', 'Baaki (Available)'],
-      datasets: [{
-        data: dataArr,
-        backgroundColor: colors,
-        borderWidth: 0,
-        hoverOffset: hasData ? 8 : 0
-      }]
-    },
+    data: { labels: ['Total Aaya (In)','Total Gaya (Out)','Baaki (Avail)'], datasets:[{ data:dataArr, backgroundColor:colors, borderWidth:0, hoverOffset:8 }] },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '65%',
-      plugins: { 
-        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20, font: { size: 11 } } },
-        tooltip: { 
-          callbacks: { 
-            label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(3) + ' kg' : ' No Data' 
-          } 
-        }
+      responsive:true, maintainAspectRatio:false, cutout:'67%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#8a9bb5', padding:16, font:{size:11} } },
+        tooltip:{ callbacks:{ label:(c)=> hasData ? ` ${c.label}: ${c.raw.toFixed(3)} kg` : ' No Data' } }
       }
     }
   });
 }
 
-function buildDhagaPieChart() {
+function buildDhagaChart() {
   const ctx = document.getElementById('dPie'); if (!ctx) return;
-  if (charts.dPie) { charts.dPie.destroy(); }
-
+  if (charts.dhaga) { charts.dhaga.destroy(); }
   const hasData = dhagaTotalIn > 0 || dhagaTotalOut > 0;
-  const inV = hasData ? dhagaTotalIn : 1;
-  const outV = hasData ? dhagaTotalOut : 0;
-  const availV = hasData ? dhagaAvailable : 1;
-
-  const dataArr = hasData ? [inV, outV, availV] : [1, 0, 1];
-  const colors = hasData ? ['#2ec08b', '#e05260', '#c9a84c'] : ['rgba(46,192,139,.1)', 'rgba(224,82,96,.1)', 'rgba(201,168,76,.1)'];
-
-  charts.dPie = new Chart(ctx, {
+  const dataArr = hasData ? [dhagaTotalIn, dhagaTotalOut, dhagaAvailable] : [1,0,1];
+  const colors  = hasData
+    ? ['#2ec08b','#e05260','#c9a84c']
+    : ['rgba(46,192,139,.12)','rgba(224,82,96,.12)','rgba(201,168,76,.12)'];
+  charts.dhaga = new Chart(ctx, {
     type: 'doughnut',
-    data: {
-      labels: ['Total Aaya (In)', 'Total Gaya (Out)', 'Baaki (Available)'],
-      datasets: [{
-        data: dataArr,
-        backgroundColor: colors,
-        borderWidth: 0,
-        hoverOffset: hasData ? 8 : 0
-      }]
-    },
+    data: { labels: ['Total Aaya (In)','Total Gaya (Out)','Baaki (Avail)'], datasets:[{ data:dataArr, backgroundColor:colors, borderWidth:0, hoverOffset:8 }] },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '65%',
-      plugins: { 
-        legend: { position: 'bottom', labels: { color: '#8a9bb5', padding: 20, font: { size: 11 } } },
-        tooltip: { 
-          callbacks: { 
-            label: (ctx) => hasData ? ' ' + ctx.label + ': ' + ctx.raw.toFixed(0) + ' Bundle' : ' No Data' 
-          } 
-        }
+      responsive:true, maintainAspectRatio:false, cutout:'67%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#8a9bb5', padding:16, font:{size:11} } },
+        tooltip:{ callbacks:{ label:(c)=> hasData ? ` ${c.label}: ${c.raw.toFixed(0)} Bundle` : ' No Data' } }
       }
     }
   });
@@ -426,97 +343,54 @@ function buildDhagaPieChart() {
 
 function buildFeed() {
   const tbody = document.getElementById('feed');
-  const allRecs = [
-    ...suthRecords.map(r => ({...r, item: '🧵 Suth', qFmt: r.qty.toFixed(3) + ' kg'})),
-    ...dhagaRecords.map(r => ({...r, item: '🧶 Dhaga', qFmt: r.qty.toFixed(0) + ' Bndl'}))
+  if (!tbody) return;
+  const all = [
+    ...suthRecords.map(r  => ({...r, _item:'🧵 Suth',  qFmt: r.qty.toFixed(3)+' kg'})),
+    ...dhagaRecords.map(r => ({...r, _item:'🧶 Dhaga', qFmt: r.qty.toFixed(0)+' Bndl'}))
   ];
-  const sorted = allRecs.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 10);
-  
-  if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr>';
-    return;
-  }
-  
+  const sorted = all.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0,10);
+  if (!sorted.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tm)">No data yet</td></tr>'; return; }
   tbody.innerHTML = sorted.map(r => `
     <tr>
       <td style="color:var(--tm);font-size:12px">${r.date}</td>
-      <td>${r.item}</td>
-      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
+      <td>${r._item}</td>
+      <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
       <td><b>${r.qFmt}</b></td>
-      <td style="color:var(--tm)">${r.party || '—'}</td>
+      <td style="color:var(--tm)">${r.party||'—'}</td>
     </tr>`).join('');
 }
 
 // ===== SUTH LEDGER =====
 function renderSuthLedger() {
-  setText('ssIn',    suthTotalIn.toFixed(3)   + ' kg');
-  setText('ssOut',   suthTotalOut.toFixed(3)  + ' kg');
-  setText('ssAvail', suthAvailable.toFixed(3) + ' kg');
+  setText('ssIn',     suthTotalIn.toFixed(3)    + ' kg');
+  setText('ssOut',    suthTotalOut.toFixed(3)   + ' kg');
+  setText('ssAvail',  suthAvailable.toFixed(3)  + ' kg');
+  setText('ssMeters', suthTotalMeters.toFixed(1) + ' m');
 
   const tbody = document.getElementById('suthTable');
+  if (!tbody) return;
   if (!suthRecords.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">Koi record nahi — pehle suth entry karein</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--tm)">Koi record nahi — pehle entry karein</td></tr>';
     return;
   }
-
-  // Sort oldest first → calculate running balance
   let running = 0;
-  const sorted = [...suthRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...suthRecords].sort((a,b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
-    running += r.type === 'in' ? r.qty : -r.qty;
-    const bal = running;
+    running += r.type==='in' ? r.qty : -r.qty;
+    const meterStr = r.type==='out' && r.meters > 0 ? `<b>${r.meters.toFixed(1)} m</b>` : '—';
     return `<tr>
-      <td>${r.date}</td>
-      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
+      <td style="white-space:nowrap">${r.date}</td>
+      <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
+      <td>${meterStr}</td>
       <td><b>${r.qty.toFixed(3)} kg</b></td>
-      <td>${r.party || '—'}</td>
-      <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
-      <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
-      <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(3)} kg</b></td>
-      <td><button onclick="showDeleteModal('${r.id}','${r.qty.toFixed(3)} kg','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
+      <td>${r.party||'—'}</td>
+      <td>${r.ratePerKg>0?'₹'+fmt(r.ratePerKg):'—'}</td>
+      <td>${r.totalValue>0?'₹'+fmt(r.totalValue):'—'}</td>
+      <td><b style="color:${running>=0?'var(--suc)':'var(--dan)'}">${running.toFixed(3)} kg</b></td>
+      <td><button onclick="showDeleteModal('${r.id}','${r.qty.toFixed(3)} kg','${r.type}')" class="del-btn">🗑</button></td>
     </tr>`;
   });
-  tbody.innerHTML = rows.reverse().join(''); // newest first
-}
-
-// ===== CUSTOM CONFIRM MODAL =====
-function showDeleteModal(id, qtyLabel, type) {
-  const modal = document.getElementById('deleteModal');
-  document.getElementById('delModalTitle').textContent =
-    (type === 'in' ? '⬆️ Entry' : '⬇️ Exit') + ' delete karna chahte hain?';
-  document.getElementById('delModalDetail').textContent =
-    'Qty: ' + qtyLabel + ' — Google Sheet se bhi hata diya jaayega!';
-  modal.style.display = 'flex';
-  // Confirm button
-  document.getElementById('delConfirmBtn').onclick = async () => {
-    const btn = document.getElementById('delConfirmBtn');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '⏳ Deleting...';
-    btn.disabled = true;
-
-    const res = await api('deleteRecord', { id });
-    
-    btn.innerHTML = oldText;
-    btn.disabled = false;
-    modal.style.display = 'none';
-
-    if (res && res.success) {
-      toast('✅ Record delete ho gaya!', 'success');
-      refreshData();
-    } else {
-      toast(res ? res.error : 'Delete nahi hua — API check karein', 'error');
-    }
-  };
-  document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
-}
-
-
-function updateAvailInfo() {
-  const el = document.getElementById('soAvailInfo');
-  if (el) el.textContent = `🧵 Available Suth: ${suthAvailable.toFixed(3)} kg — is se zyada exit nahi ho sakta`;
-  
-  const doEl = document.getElementById('doAvailInfo');
-  if (doEl) doEl.textContent = `🧶 Available Dhaga: ${dhagaAvailable.toFixed(0)} Bundle — is se zyada exit nahi ho sakta`;
+  tbody.innerHTML = rows.reverse().join('');
 }
 
 // ===== SUTH ENTRY =====
@@ -527,264 +401,88 @@ async function submitSuthIn() {
     party: document.getElementById('siParty').value.trim(),
     notes: document.getElementById('siNotes').value.trim()
   };
+  if (!d.date) { toast('Date zaroor dalein', 'error'); return; }
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
-
   const btn = document.getElementById('btnSI');
-  btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Suth', type: 'in' });
-  btn.textContent = '✅ Save Entry'; btn.disabled = false;
-
+  btn.textContent='Saving...'; btn.disabled=true;
+  const res = await api('addRecord', { ...d, item:'Suth', type:'in' });
+  btn.textContent='✅ Save Entry'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty} kg suth entry saved!`, 'success');
-    resetSuthIn();
+    toast(`✅ ${d.qty} kg suth aaya — saved!`, 'success');
+    ['siQty','siParty','siNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
-  } else {
-    toast(res ? res.error : 'API error — Settings mein URL check karein', 'error');
-  }
+  } else toast(res?.error || 'API error', 'error');
 }
 
-function resetSuthIn() {
-  ['siQty', 'siParty', 'siNotes'].forEach(id => {
-    const e = document.getElementById(id); if (e) e.value = '';
-  });
-}
-
-// ===== SUTH EXIT =====
+// ===== SUTH EXIT (METER-BASED) =====
 function calcSuthExit() {
-  const m = parseFloat(document.getElementById('soMeters').value) || 0;
-  const rm = parseFloat(document.getElementById('soRatePerM').value) || 0;
-  const rk = parseFloat(document.getElementById('soRate').value) || 0;
-  
+  const m  = parseFloat(document.getElementById('soMeters').value)    || 0;
+  const rm = parseFloat(document.getElementById('soRatePerM').value)   || 0;
+  const rk = parseFloat(document.getElementById('soRate').value)       || 0;
   const totalKg = m * rm;
-  document.getElementById('soQty').value = totalKg > 0 ? totalKg.toFixed(3) : '';
-  document.getElementById('soValue').value = totalKg && rk ? '₹' + (totalKg * rk).toLocaleString('en-IN', {minimumFractionDigits:2}) : '';
+  const soQty = document.getElementById('soQty');
+  if (soQty) soQty.value = totalKg > 0 ? totalKg.toFixed(3) : '';
+  const soVal = document.getElementById('soValue');
+  if (soVal) soVal.value = totalKg && rk ? '₹' + fmt(totalKg * rk) : '';
 }
 
 async function submitSuthOut() {
-  const m = document.getElementById('soMeters').value;
-  const rm = document.getElementById('soRatePerM').value;
+  const meters = parseFloat(document.getElementById('soMeters').value)    || 0;
+  const rm     = parseFloat(document.getElementById('soRatePerM').value)   || 0;
+  const qty    = parseFloat(document.getElementById('soQty').value)        || 0;
+  if (!qty || qty <= 0) { toast('Pehle Meters aur Suth/Meter rate dalein', 'error'); return; }
+  if (qty > suthAvailable) {
+    toast(`❌ Available suth sirf ${suthAvailable.toFixed(3)} kg hai!`, 'error'); return;
+  }
   const d = {
     date:      document.getElementById('soDate').value,
-    qty:       parseFloat(document.getElementById('soQty').value) || 0,
+    qty:       qty,
+    meters:    meters,
     party:     document.getElementById('soParty').value.trim(),
     ratePerKg: parseFloat(document.getElementById('soRate').value) || 0,
     notes:     document.getElementById('soNotes').value.trim()
   };
-  
-  if (!d.qty || d.qty <= 0) { toast('Quantity calculate nahi hui. Meters aur Rate check karein', 'error'); return; }
-  if (d.qty > suthAvailable) {
-    toast(`❌ Available suth sirf ${suthAvailable.toFixed(3)} kg hai!`, 'error');
-    return;
-  }
-
-  let finalNotes = d.notes;
-  if (m) finalNotes = (finalNotes ? finalNotes + ' | ' : '') + m + ' Mtr (@' + rm + ')';
-
   const btn = document.getElementById('btnSO');
-  btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, notes: finalNotes, item: 'Suth', type: 'out' });
-  btn.textContent = '🔻 Save Exit'; btn.disabled = false;
-
+  btn.textContent='Saving...'; btn.disabled=true;
+  const res = await api('addRecord', { ...d, item:'Suth', type:'out' });
+  btn.textContent='🔻 Save Exit'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty.toFixed(3)} kg suth exit saved!`, 'success');
-    resetSuthOut();
+    toast(`✅ ${qty.toFixed(3)} kg suth gaya (${meters} m) — saved!`, 'success');
+    ['soQty','soParty','soRate','soNotes','soValue','soMeters','soRatePerM'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
-  } else {
-    toast(res ? res.error : 'API error', 'error');
-  }
+  } else toast(res?.error || 'API error', 'error');
 }
 
-function resetSuthOut() {
-  ['soQty', 'soParty', 'soRate', 'soNotes', 'soValue', 'soMeters', 'soRatePerM'].forEach(id => {
-    const e = document.getElementById(id); if (e) e.value = '';
-  });
-}
-
-// ===== SUTH CALCULATOR =====
-function calcSuth() {
-  const m = parseFloat(document.getElementById('scMeters').value) || 0;
-  const r = parseFloat(document.getElementById('scRate').value)   || 0;
-  const p = parseFloat(document.getElementById('scPrice').value)  || 0;
-  const ts = m * r;
-  const tc = ts * p;
-  const pm = m > 0 ? tc / m : 0;
-
-  setText('scTotalSuth', m > 0 && r > 0 ? ts.toFixed(6) + ' kg' : '—');
-  setText('scTotalCost',  p > 0 ? '₹' + fmt(tc) : '—');
-  setText('scPerMeter',   p > 0 && m > 0 ? '₹' + pm.toFixed(4) + '/m' : '—');
-
-  // Breakdown table
-  if (m > 0 && r > 0) {
-    const rows = [];
-    for (let i = 100; i < m; i += 100) rows.push(i);
-    rows.push(m); // always include the entered value
-    document.getElementById('scTable').innerHTML = rows.map(x =>
-      `<tr><td><b>${x}m</b></td><td>${(x * r).toFixed(6)}</td><td>${p > 0 ? '₹' + fmt(x * r * p) : '—'}</td></tr>`
-    ).join('');
-  }
-}
-
-// ===== EXPORT =====
-function exportSuthPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const co = localStorage.getItem('mt_company') || 'Momin Textile';
-  doc.setFontSize(20); doc.setTextColor(201, 168, 76); doc.text(co, 14, 18);
-  doc.setFontSize(11); doc.setTextColor(130); doc.text('Suth Ledger — ' + new Date().toLocaleDateString('en-IN'), 14, 27);
-  doc.setFontSize(11); doc.setTextColor(46, 192, 139);
-  doc.text(`Total In: ${suthTotalIn.toFixed(3)} kg   Out: ${suthTotalOut.toFixed(3)} kg   Available: ${suthAvailable.toFixed(3)} kg`, 14, 36);
-
-  let running = 0;
-  const sorted = [...suthRecords].sort((a, b) => a.date.localeCompare(b.date));
-  const tableData = sorted.map(r => {
-    running += r.type === 'in' ? r.qty : -r.qty;
-    return [r.date, r.type === 'in' ? 'Aaya' : 'Gaya', r.qty.toFixed(3), r.party || '—',
-      r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—', r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—', running.toFixed(3)];
-  }).reverse();
-
-  doc.autoTable({
-    startY: 44,
-    head: [['Date', 'Type', 'Qty (kg)', 'Party', 'Rate/kg', 'Value', 'Balance (kg)']],
-    body: tableData,
-    styles: { fontSize: 8.5 },
-    headStyles: { fillColor: [13, 27, 42], textColor: [201, 168, 76] },
-    alternateRowStyles: { fillColor: [22, 32, 50] }
-  });
-
-  doc.save(co.replace(/\s/g, '_') + '_Suth_' + new Date().toISOString().slice(0, 10) + '.pdf');
-}
-
-function exportSuthCSV() {
-  const rows = [['Date', 'Type', 'Qty (kg)', 'Party/Purpose', 'Rate/kg (₹)', 'Value (₹)', 'Balance (kg)']];
-  let running = 0;
-  [...suthRecords].sort((a, b) => a.date.localeCompare(b.date)).forEach(r => {
-    running += r.type === 'in' ? r.qty : -r.qty;
-    rows.push([r.date, r.type === 'in' ? 'Aaya' : 'Gaya', r.qty.toFixed(3), r.party || '', r.ratePerKg || '', r.totalValue || '', running.toFixed(3)]);
-  });
-  const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = 'Momin_Suth_Ledger.csv';
-  a.click();
-}
-
-// ===== NAVIGATION =====
-function showPage(pg) {
-  document.querySelectorAll('.pg').forEach(s => s.style.display = 'none');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.bn').forEach(n => n.classList.remove('active'));
-  const page = document.getElementById('pg-' + pg);
-  if (page) page.style.display = 'block';
-  const nav = document.getElementById('nav-' + pg);
-  if (nav) nav.classList.add('active');
-  const bnav = document.getElementById('bn-' + pg);
-  if (bnav) bnav.classList.add('active');
-  const titles = { dash: '📊 Dashboard', 'suth-stock': '🧵 Suth Ledger', suth: '🧮 Suth Calculator', settings: '⚙️ Settings' };
-  setText('pageTitle', titles[pg] || pg);
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('overlay').style.display = 'none';
-  }
-}
-
-function toggleSB() {
-  const sb = document.getElementById('sidebar');
-  const ov = document.getElementById('overlay');
-  const open = !sb.classList.contains('open');
-  sb.classList.toggle('open', open);
-  ov.style.display = open ? 'block' : 'none';
-}
-
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('mt_theme', next);
-  setText('themeIcon', next === 'dark' ? '🌙' : '☀️');
-}
-
-// ===== HELPERS =====
-function fmt(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
-function setText(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
-function last6() {
-  const m = []; const d = new Date();
-  for (let i = 5; i >= 0; i--) { const t = new Date(d.getFullYear(), d.getMonth() - i, 1); m.push(t.toISOString().slice(0, 7)); }
-  return m;
-}
-function toast(msg, type = 'success') {
-  const el = document.createElement('div');
-  el.className = 'toast ' + type;
-  el.textContent = msg;
-  document.getElementById('toasts').appendChild(el);
-  setTimeout(() => el.remove(), 3500);
-}
-
-
-
-// ==============================
-// DORI LEDGER LOGIC
-// ==============================
-
+// ===== DHAGA LEDGER =====
 function renderDhagaLedger() {
-  setText('dsIn',    dhagaTotalIn.toFixed(0));
-  setText('dsOut',   dhagaTotalOut.toFixed(0));
-  setText('dsAvail', dhagaAvailable.toFixed(0));
+  setText('dsIn',    dhagaTotalIn.toFixed(0)   + ' Bndl');
+  setText('dsOut',   dhagaTotalOut.toFixed(0)  + ' Bndl');
+  setText('dsAvail', dhagaAvailable.toFixed(0) + ' Bndl');
 
   const tbody = document.getElementById('dhagaTable');
   if (!tbody) return;
-
   if (!dhagaRecords.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
     return;
   }
-
   let running = 0;
-  const sorted = [...dhagaRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...dhagaRecords].sort((a,b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
-    running += r.type === 'in' ? r.qty : -r.qty;
-    const bal = running;
+    running += r.type==='in' ? r.qty : -r.qty;
     return `<tr>
-      <td>${r.date}</td>
-      <td><span class="badge ${r.type === 'in' ? 'bg' : 'br'}">${r.type === 'in' ? '⬆️ Aaya' : '⬇️ Gaya'}</span></td>
-      <td><b>${r.qty.toFixed(0)}</b></td>
-      <td>${r.party || '—'}</td>
-      <td>${r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—'}</td>
-      <td>${r.totalValue > 0 ? '₹' + fmt(r.totalValue) : '—'}</td>
-      <td><b style="color:${bal >= 0 ? 'var(--suc)' : 'var(--dan)'}">${bal.toFixed(0)}</b></td>
-      <td><button onclick="showDeleteDhagaModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" style="background:rgba(224,82,96,.15);border:1px solid rgba(224,82,96,.3);color:var(--dan);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">🗑 Del</button></td>
+      <td style="white-space:nowrap">${r.date}</td>
+      <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
+      <td><b>${r.qty.toFixed(0)} Bndl</b></td>
+      <td>${r.party||'—'}</td>
+      <td>${r.totalValue>0?'₹'+fmt(r.totalValue):'—'}</td>
+      <td><b style="color:${running>=0?'var(--suc)':'var(--dan)'}">${running.toFixed(0)} Bndl</b></td>
+      <td><button onclick="showDeleteDhagaModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" class="del-btn">🗑</button></td>
     </tr>`;
   });
   tbody.innerHTML = rows.reverse().join('');
 }
 
-function showDeleteDhagaModal(id, qtyLabel, type) {
-  const modal = document.getElementById('deleteModal');
-  document.getElementById('delModalTitle').textContent = (type === 'in' ? '⬆️ Entry' : '⬇️ Exit') + ' delete karna chahte hain?';
-  document.getElementById('delModalDetail').textContent = 'Qty: ' + qtyLabel + ' — Google Sheet se bhi hata diya jaayega!';
-  modal.style.display = 'flex';
-  
-  document.getElementById('delConfirmBtn').onclick = async () => {
-    const btn = document.getElementById('delConfirmBtn');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '⏳ Deleting...';
-    btn.disabled = true;
-
-    const res = await api('deleteRecord', { id });
-    
-    btn.innerHTML = oldText;
-    btn.disabled = false;
-    modal.style.display = 'none';
-
-    if (res && res.success) {
-      toast('✅ Dhaga record delete ho gaya!', 'success');
-      refreshData();
-    } else {
-      toast(res ? res.error : 'Delete nahi hua', 'error');
-    }
-  };
-  document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
-}
-
+// ===== DHAGA ENTRY =====
 async function submitDhagaIn() {
   const d = {
     date:  document.getElementById('diDate').value,
@@ -793,33 +491,18 @@ async function submitDhagaIn() {
     notes: document.getElementById('diNotes').value.trim()
   };
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
-
   const btn = document.getElementById('btnDI');
-  btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Dhaga', type: 'in' });
-  btn.textContent = '✅ Save Entry'; btn.disabled = false;
-
+  btn.textContent='Saving...'; btn.disabled=true;
+  const res = await api('addRecord', { ...d, item:'Dhaga', type:'in' });
+  btn.textContent='✅ Save Entry'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty} bundle entry saved!`, 'success');
-    resetDhagaIn();
+    toast(`✅ ${d.qty} bundle aaya — saved!`, 'success');
+    ['diQty','diParty','diNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
-  } else {
-    toast(res ? res.error : 'API error', 'error');
-  }
+  } else toast(res?.error || 'API error', 'error');
 }
 
-function resetDhagaIn() {
-  ['diQty', 'diParty', 'diNotes'].forEach(id => {
-    const e = document.getElementById(id); if (e) e.value = '';
-  });
-}
-
-function calcDhagaExitValue() {
-  const q = parseFloat(document.getElementById('doQty').value) || 0;
-  const r = parseFloat(document.getElementById('doRate').value) || 0;
-  document.getElementById('doValue').value = q && r ? '₹' + fmt(q * r) : '';
-}
-
+// ===== DHAGA EXIT =====
 async function submitDhagaOut() {
   const d = {
     date:      document.getElementById('doDate').value,
@@ -830,27 +513,226 @@ async function submitDhagaOut() {
   };
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
   if (d.qty > dhagaAvailable) {
-    toast(`❌ Available dhaga sirf ${dhagaAvailable.toFixed(0)} bundle hai!`, 'error');
-    return;
+    toast(`❌ Available dhaga sirf ${dhagaAvailable.toFixed(0)} bundle hai!`, 'error'); return;
   }
-
   const btn = document.getElementById('btnDO');
-  btn.textContent = 'Saving...'; btn.disabled = true;
-  const res = await api('addRecord', { ...d, item: 'Dhaga', type: 'out' });
-  btn.textContent = '🔻 Save Exit'; btn.disabled = false;
+  btn.textContent='Saving...'; btn.disabled=true;
+  const res = await api('addRecord', { ...d, item:'Dhaga', type:'out' });
+  btn.textContent='🔻 Save Exit'; btn.disabled=false;
+  if (res && res.success) {
+    toast(`✅ ${d.qty} bundle gaya — saved!`, 'success');
+    ['doQty','doParty','doRate','doNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    refreshData();
+  } else toast(res?.error || 'API error', 'error');
+}
+
+// ===== AVAILABLE INFO =====
+function updateAvailInfo() {
+  const el = document.getElementById('soAvailInfo');
+  if (el) el.textContent = `🧵 Available: ${suthAvailable.toFixed(3)} kg (${suthTotalMeters.toFixed(1)} m produced total)`;
+  const doEl = document.getElementById('doAvailInfo');
+  if (doEl) doEl.textContent = `🧶 Available: ${dhagaAvailable.toFixed(0)} Bundle`;
+}
+
+// ===== TRANSACTION SYSTEM =====
+async function submitTransaction() {
+  const d = {
+    date:   document.getElementById('txnDate').value,
+    party:  document.getElementById('txnParty').value.trim(),
+    amount: parseFloat(document.getElementById('txnAmount').value) || 0,
+    type:   document.getElementById('txnType').value,
+    notes:  document.getElementById('txnNotes').value.trim()
+  };
+  if (!d.party) { toast('Party ka naam dalein', 'error'); return; }
+  if (!d.amount || d.amount <= 0) { toast('Amount dalein', 'error'); return; }
+
+  const btn = document.getElementById('btnTxn');
+  btn.textContent='Saving...'; btn.disabled=true;
+  const res = await api('addTransaction', d);
+  btn.textContent='💾 Save'; btn.disabled=false;
 
   if (res && res.success) {
-    toast(`✅ ${d.qty} bundle exit saved!`, 'success');
-    resetDhagaOut();
-    refreshData();
-  } else {
-    toast(res ? res.error : 'API error', 'error');
+    toast(`✅ ₹${fmt(d.amount)} ${d.type === 'received' ? 'aaya' : 'diya'} — saved!`, 'success');
+    ['txnParty','txnAmount','txnNotes'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+    // Fast local update — no extra API call
+    const newTxn = { id: res.id || 'TXN-'+Date.now(), ...d };
+    txnRecords.unshift(newTxn);
+    // Rebuild parties from local data
+    rebuildParties();
+    renderTransactions();
+  } else toast(res?.error || 'API error', 'error');
+}
+
+function rebuildParties() {
+  const map = {};
+  txnRecords.forEach(t => {
+    const k = t.party.toLowerCase().trim();
+    if (!map[k]) map[k] = { party: t.party, received: 0, paid: 0 };
+    if (t.type === 'received') map[k].received += t.amount;
+    else                       map[k].paid     += t.amount;
+  });
+  txnParties = Object.values(map).map(p => ({ ...p, balance: p.received - p.paid }));
+}
+
+function renderTransactions() {
+  // ---- PARTY CARDS ----
+  const partySection = document.getElementById('partyCards');
+  if (partySection) {
+    if (!txnParties.length) {
+      partySection.innerHTML = '<div style="text-align:center;padding:24px;color:var(--tm)">Koi party nahi — pehle hisaab add karein</div>';
+    } else {
+      const sorted = [...txnParties].sort((a,b) => Math.abs(b.balance) - Math.abs(a.balance));
+      partySection.innerHTML = sorted.map(p => {
+        const bal = p.balance;
+        const isPositive = bal >= 0; // Received > Paid → Unke paas hamara paisa hai (ya settle hai)
+        const balLabel = bal > 0
+          ? `🟡 Humara paisa baaki: ₹${fmt(bal)}`
+          : bal < 0
+            ? `🔴 Hamein dena hai: ₹${fmt(Math.abs(bal))}`
+            : `✅ Hisaab saaf!`;
+        const balColor = bal > 0 ? 'var(--war)' : bal < 0 ? 'var(--dan)' : 'var(--suc)';
+        return `
+        <div style="background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:.2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--brd)'">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:16px;font-weight:700;color:var(--tx)">${p.party}</div>
+              <div style="font-size:12px;color:var(--tm);margin-top:3px">
+                <span style="color:var(--suc)">⬆️ Aaya ₹${fmt(p.received)}</span>
+                &nbsp;•&nbsp;
+                <span style="color:var(--dan)">⬇️ Diya ₹${fmt(p.paid)}</span>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:18px;font-weight:800;color:${balColor}">${bal > 0 ? '+' : bal < 0 ? '-' : ''}₹${fmt(Math.abs(bal))}</div>
+              <div style="font-size:11px;color:${balColor};margin-top:2px">${balLabel}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ---- TRANSACTION LIST ----
+  const txTable = document.getElementById('txnTable');
+  if (txTable) {
+    if (!txnRecords.length) {
+      txTable.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--tm)">No transactions yet</td></tr>';
+    } else {
+      txTable.innerHTML = txnRecords.map(t => `
+        <tr>
+          <td style="white-space:nowrap;color:var(--tm);font-size:12px">${t.date}</td>
+          <td><b>${t.party}</b></td>
+          <td><span class="badge ${t.type==='received'?'bg':'br'}">${t.type==='received'?'⬆️ Aaya':'⬇️ Diya'}</span></td>
+          <td><b style="color:${t.type==='received'?'var(--suc)':'var(--dan)'}">${t.type==='received'?'+':'-'}₹${fmt(t.amount)}</b></td>
+          <td style="color:var(--tm)">${t.notes||'—'}</td>
+          <td><button onclick="deleteTxn('${t.id}')" class="del-btn">🗑</button></td>
+        </tr>`).join('');
+    }
   }
 }
 
-function resetDhagaOut() {
-  ['doQty', 'doParty', 'doRate', 'doNotes', 'doValue'].forEach(id => {
-    const e = document.getElementById(id); if (e) e.value = '';
-  });
+async function deleteTxn(id) {
+  const modal = document.getElementById('deleteModal');
+  document.getElementById('delModalTitle').textContent = '💰 Transaction delete karein?';
+  document.getElementById('delModalDetail').textContent = 'Ye hisaab Google Sheet se bhi hata diya jaayega!';
+  modal.style.display = 'flex';
+  document.getElementById('delConfirmBtn').onclick = async () => {
+    const btn = document.getElementById('delConfirmBtn');
+    btn.innerHTML = '⏳ Deleting...'; btn.disabled = true;
+    const res = await api('deleteTransaction', { id });
+    btn.innerHTML = '🗑 Delete'; btn.disabled = false;
+    modal.style.display = 'none';
+    if (res && res.success) {
+      toast('✅ Hisaab delete ho gaya!', 'success');
+      txnRecords = txnRecords.filter(t => t.id !== id);
+      rebuildParties();
+      renderTransactions();
+    } else toast(res?.error || 'Delete nahi hua', 'error');
+  };
+  document.getElementById('delCancelBtn').onclick = () => { modal.style.display = 'none'; };
 }
 
+// ===== DELETE MODALS =====
+function showDeleteModal(id, qtyLabel, type) {
+  const modal = document.getElementById('deleteModal');
+  document.getElementById('delModalTitle').textContent = (type==='in'?'⬆️ Entry':'⬇️ Exit') + ' delete karein?';
+  document.getElementById('delModalDetail').textContent = 'Qty: ' + qtyLabel + ' — Google Sheet se bhi hatega!';
+  modal.style.display='flex';
+  document.getElementById('delConfirmBtn').onclick = async () => {
+    const btn = document.getElementById('delConfirmBtn');
+    btn.innerHTML='⏳ Deleting...'; btn.disabled=true;
+    const res = await api('deleteRecord', { id });
+    btn.innerHTML='🗑 Delete'; btn.disabled=false;
+    modal.style.display='none';
+    if (res && res.success) { toast('✅ Record delete ho gaya!','success'); refreshData(); }
+    else toast(res?.error || 'Delete nahi hua','error');
+  };
+  document.getElementById('delCancelBtn').onclick = () => { modal.style.display='none'; };
+}
+
+function showDeleteDhagaModal(id, qtyLabel, type) {
+  showDeleteModal(id, qtyLabel, type);
+}
+
+// ===== SUTH CALCULATOR =====
+function calcSuth() {
+  const m = parseFloat(document.getElementById('scMeters').value) || 0;
+  const r = parseFloat(document.getElementById('scRate').value)   || 0;
+  const p = parseFloat(document.getElementById('scPrice').value)  || 0;
+  const ts = m * r;
+  const tc = ts * p;
+  const pm = m > 0 ? tc / m : 0;
+  setText('scTotalSuth', m>0&&r>0 ? ts.toFixed(6)+' kg' : '—');
+  setText('scTotalCost',  p>0     ? '₹'+fmt(tc) : '—');
+  setText('scPerMeter',   p>0&&m>0? '₹'+pm.toFixed(4)+'/m' : '—');
+  if (m>0 && r>0) {
+    const rows=[];
+    for (let i=100; i<m; i+=100) rows.push(i);
+    rows.push(m);
+    document.getElementById('scTable').innerHTML = rows.map(x =>
+      `<tr><td><b>${x}m</b></td><td>${(x*r).toFixed(6)}</td><td>${p>0?'₹'+fmt(x*r*p):'—'}</td></tr>`
+    ).join('');
+  }
+}
+
+// ===== EXPORT =====
+function exportSuthPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const co = localStorage.getItem('mt_company') || 'Momin Textile';
+  doc.setFontSize(20); doc.setTextColor(201,168,76); doc.text(co,14,18);
+  doc.setFontSize(11); doc.setTextColor(130); doc.text('Suth Ledger — '+new Date().toLocaleDateString('en-IN'),14,27);
+  doc.setFontSize(10); doc.setTextColor(46,192,139);
+  doc.text(`In: ${suthTotalIn.toFixed(3)} kg | Out: ${suthTotalOut.toFixed(3)} kg | Avail: ${suthAvailable.toFixed(3)} kg | Meters: ${suthTotalMeters.toFixed(1)} m`,14,36);
+  let running=0;
+  const sorted=[...suthRecords].sort((a,b)=>a.date.localeCompare(b.date));
+  const tableData=sorted.map(r=>{
+    running += r.type==='in' ? r.qty : -r.qty;
+    return [r.date, r.type==='in'?'Aaya':'Gaya', r.meters>0?r.meters.toFixed(1)+'m':'—', r.qty.toFixed(3), r.party||'—', r.ratePerKg>0?'₹'+fmt(r.ratePerKg):'—', r.totalValue>0?'₹'+fmt(r.totalValue):'—', running.toFixed(3)];
+  }).reverse();
+  doc.autoTable({ startY:44, head:[['Date','Type','Meters','Qty(kg)','Party','Rate/kg','Value','Balance(kg)']], body:tableData, styles:{fontSize:8}, headStyles:{fillColor:[13,27,42],textColor:[201,168,76]}, alternateRowStyles:{fillColor:[22,32,50]} });
+  doc.save(co.replace(/\s/g,'_')+'_Suth_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
+function exportSuthCSV() {
+  const rows=[['Date','Type','Meters','Qty(kg)','Party','Rate/kg','Value','Balance(kg)']];
+  let running=0;
+  [...suthRecords].sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
+    running += r.type==='in'?r.qty:-r.qty;
+    rows.push([r.date,r.type==='in'?'Aaya':'Gaya',r.meters||0,r.qty.toFixed(3),r.party||'',r.ratePerKg||'',r.totalValue||'',running.toFixed(3)]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+v+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='Momin_Suth_Ledger.csv'; a.click();
+}
+
+// ===== HELPERS =====
+function fmt(n) { return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+function setText(id,v) { const e=document.getElementById(id); if(e) e.textContent=v; }
+function toast(msg, type='success') {
+  const el=document.createElement('div');
+  el.className='toast '+type; el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
