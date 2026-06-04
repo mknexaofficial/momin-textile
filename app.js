@@ -371,7 +371,7 @@ function buildFeed() {
   if (!tbody) return;
   const all = [
     ...suthRecords.map(r  => ({...r, _item:'🧵 Suth',  qFmt: r.qty.toFixed(3)+' kg' + (r.type === 'out' && r.meters > 0 ? `<br><small style="color:var(--gold)">${r.meters.toFixed(1)} m</small>` : '')})),
-    ...dhagaRecords.map(r => ({...r, _item:'🧶 Dhaga', qFmt: r.qty.toFixed(0)+' Bndl' + (r.type === 'out' && r.meters > 0 ? `<br><small style="color:var(--gold)">${r.meters.toFixed(1)} m</small>` : '')}))
+    ...dhagaRecords.map(r => ({...r, _item:'🧶 Dhaga', qFmt: r.qty.toFixed(0)+' Bndl'}))
   ];
   all.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   const sorted = all.slice(0, 10);
@@ -495,11 +495,9 @@ function renderDhagaLedger() {
   const sorted = [...dhagaRecords].sort((a,b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
     running += r.type==='in' ? r.qty : -r.qty;
-    const meterStr = r.type==='out' && r.meters > 0 ? `<b style="color:var(--gold)">${r.meters.toFixed(1)} m</b>` : '<span style="color:var(--tm)">—</span>';
     return `<tr>
       <td style="white-space:nowrap">${r.date}</td>
       <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
-      <td>${meterStr}</td>
       <td><b>${r.qty.toFixed(0)} Bndl</b></td>
       <td>${r.party||'—'}</td>
       <td>${r.totalValue>0?'₹'+fmt(r.totalValue):'—'}</td>
@@ -531,21 +529,12 @@ async function submitDhagaIn() {
 }
 
 // ===== DHAGA EXIT =====
-function calcDhagaExit() {
-  const q = parseFloat(document.getElementById('doQty').value) || 0;
-  const m = parseFloat(document.getElementById('doRatePerM').value) || 0;
-  const tMeters = q * m;
-  const doMeters = document.getElementById('doMeters');
-  if (doMeters) doMeters.value = tMeters > 0 ? tMeters.toFixed(1) : '';
-}
-
 async function submitDhagaOut() {
   const d = {
     date:      document.getElementById('doDate').value,
     qty:       parseFloat(document.getElementById('doQty').value) || 0,
     party:     document.getElementById('doParty').value.trim(),
     ratePerKg: parseFloat(document.getElementById('doRate').value) || 0,
-    meters:    parseFloat(document.getElementById('doMeters').value) || 0,
     notes:     document.getElementById('doNotes').value.trim()
   };
   if (!d.date) { toast('Date zaroor dalein', 'error'); return; }
@@ -558,8 +547,8 @@ async function submitDhagaOut() {
   const res = await api('addRecord', { ...d, item:'Dhaga', type:'out' });
   btn.textContent='🔻 Save Exit'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty} bundle dhaga gaya (${d.meters} m) — saved!`, 'success');
-    ['doQty','doParty','doRate','doNotes','doRatePerM','doMeters'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    toast(`✅ ${d.qty} bundle dhaga gaya — saved!`, 'success');
+    ['doQty','doParty','doRate','doNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
   } else toast(res?.error || 'API error', 'error');
 }
@@ -613,6 +602,27 @@ function rebuildParties() {
 }
 
 function renderTransactions() {
+  // ---- OVERALL CASH AVAILABLE ----
+  const sumCard = document.getElementById('hisaabSummaryCard');
+  const sumVal  = document.getElementById('hisaabTotalAvailable');
+  if (sumCard && sumVal) {
+    let totRec = 0, totPaid = 0;
+    txnRecords.forEach(t => { if(t.type==='received') totRec+=t.amount; else totPaid+=t.amount; });
+    const totAvail = totRec - totPaid;
+    
+    // Only show if there's any transaction
+    if (txnRecords.length > 0) {
+      sumCard.style.display = 'block';
+      sumVal.textContent = '₹' + fmt(totAvail);
+      sumVal.style.color = totAvail >= 0 ? 'var(--suc)' : 'var(--dan)';
+      if (totAvail < 0) {
+        sumVal.textContent = '-₹' + fmt(Math.abs(totAvail)) + ' (Udhaar)';
+      }
+    } else {
+      sumCard.style.display = 'none';
+    }
+  }
+
   // ---- PARTY CARDS ----
   const partySection = document.getElementById('partyCards');
   if (partySection) {
