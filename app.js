@@ -444,12 +444,14 @@ async function submitSuthIn() {
 function calcSuthExit() {
   const m  = parseFloat(document.getElementById('soMeters').value)    || 0;
   const rm = parseFloat(document.getElementById('soRatePerM').value)   || 0;
-  const rk = parseFloat(document.getElementById('soRate').value)       || 0;
+  const rk = parseFloat(document.getElementById('soRate').value)       || 0; // rk is now Rate per Miter
   const totalKg = m * rm;
   const soQty = document.getElementById('soQty');
   if (soQty) soQty.value = totalKg > 0 ? totalKg.toFixed(3) : '';
   const soVal = document.getElementById('soValue');
-  if (soVal) soVal.value = totalKg && rk ? '₹' + fmt(totalKg * rk) : '';
+  // Total Value calculation updated to (Meters * Rate) instead of (KG * Rate)
+  const totalVal = m * rk;
+  if (soVal) soVal.value = totalVal > 0 ? '₹' + fmt(totalVal) : '';
 }
 
 async function submitSuthOut() {
