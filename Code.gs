@@ -25,6 +25,37 @@ function makeResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ===================== SECURITY =====================
+function getBackendPass() {
+  let sheet = SS.getSheetByName("Settings");
+  if (!sheet) {
+    sheet = SS.insertSheet("Settings");
+    sheet.getRange("A1:B1").setValues([["Key", "Value"]]);
+    sheet.getRange("A2:B2").setValues([["Password", "'1234"]]);
+    return "1234";
+  }
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === "Password") return String(rows[i][1]).replace(/^'/, '');
+  }
+  sheet.appendRow(["Password", "'1234"]);
+  return "1234";
+}
+
+function updateBackendPass(data) {
+  let sheet = SS.getSheetByName("Settings");
+  if (!sheet) { getBackendPass(); sheet = SS.getSheetByName("Settings"); }
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === "Password") {
+      sheet.getRange(i + 1, 2).setValue("'" + String(data.newPass));
+      return { success: true };
+    }
+  }
+  sheet.appendRow(["Password", "'" + String(data.newPass)]);
+  return { success: true };
+}
+
 // ===================== MAIN ROUTER =====================
 function doGet(e) {
   try {
@@ -37,6 +68,12 @@ function doGet(e) {
     ensureDbSheet();
     ensureTxnSheet();
 
+    // 🔒 SECURITY CHECK
+    const realPass = getBackendPass();
+    if (data.pass !== realPass) {
+      return makeResponse({ success: false, error: 'AUTH_FAILED' });
+    }
+
     switch (action) {
       case 'addRecord':        return makeResponse(addRecord(data));
       case 'getRecords':       return makeResponse(getRecords());
@@ -44,6 +81,7 @@ function doGet(e) {
       case 'addTransaction':   return makeResponse(addTransaction(data));
       case 'getTransactions':  return makeResponse(getTransactions());
       case 'deleteTransaction':return makeResponse(deleteTransaction(data));
+      case 'updatePassword':   return makeResponse(updateBackendPass(data));
       default:
         return makeResponse({ success: false, error: 'Unknown action: ' + action });
     }
@@ -92,8 +130,12 @@ function addRecord(d) {
   const prefix = item === 'Suth' ? 'S' : 'D';
   const id     = prefix + (type === 'in' ? 'IN' : 'OUT') + '-' + Date.now();
 
-  // For Dhaga exit: amount entered IS the total (no qty*rate)
-  const finalTotal = (item === 'Dhaga' && type === 'out') ? rate : (qty * rate);
+  // For Dhaga exit: amount entered IS the total.
+  // For Suth exit: rate is applied per meter.
+  // For others (Suth in, Dhaga in): rate is applied per kg/bundle.
+  const finalTotal = (item === 'Dhaga' && type === 'out') ? rate :
+                     (item === 'Suth'  && type === 'out') ? (meters * rate) :
+                     (qty * rate);
 
   sheet.appendRow([
     id,

@@ -606,8 +606,14 @@ select.fi option{background:var(--bg2)}
             <label>🔒 Change Password</label>
             <div class="fhint" style="margin-bottom:8px">Koi bhi password de sakte hain — e.g. momintextile@3125</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <input type="password" id="settNewPass" class="fi" placeholder="New Password" autocomplete="new-password">
-              <input type="password" id="settConfPass" class="fi" placeholder="Confirm Password" autocomplete="new-password">
+              <div class="pass-wrap">
+                <input type="password" id="settNewPass" class="fi" placeholder="New Password" autocomplete="new-password">
+                <button class="pass-eye" onclick="togglePassVisId('settNewPass', this)" type="button">👁️</button>
+              </div>
+              <div class="pass-wrap">
+                <input type="password" id="settConfPass" class="fi" placeholder="Confirm Password" autocomplete="new-password">
+                <button class="pass-eye" onclick="togglePassVisId('settConfPass', this)" type="button">👁️</button>
+              </div>
             </div>
             <div class="fhint">Khali chhod dein agar password nahi badalna — current rahega</div>
           </div>

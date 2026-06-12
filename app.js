@@ -104,6 +104,16 @@ function togglePassVis() {
   }
 }
 
+function togglePassVisId(id, btn) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text'; if (btn) btn.textContent = '🙈';
+  } else {
+    inp.type = 'password'; if (btn) btn.textContent = '👁️';
+  }
+}
+
 function onPassInput(e) {
   const err = document.getElementById('pinErr');
   if (err) err.textContent = '';
@@ -171,8 +181,11 @@ async function saveSettings() {
     
     if (res && res.success) {
       localStorage.setItem('mt_pass', np);
-      document.getElementById('settNewPass').value = '';
-      document.getElementById('settConfPass').value = '';
+      const npInp = document.getElementById('settNewPass');
+      const cpInp = document.getElementById('settConfPass');
+      npInp.value = ''; npInp.type = 'password';
+      cpInp.value = ''; cpInp.type = 'password';
+      document.querySelectorAll('#settings .pass-eye').forEach(b => b.textContent = '👁️');
       toast('Password backend aur mobile par change ho gaya! 🔒', 'success');
     } else {
       toast('Backend par password change nahi hua: ' + (res?.error || 'Unknown Error'), 'error');
