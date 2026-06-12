@@ -383,6 +383,7 @@ function buildFeed() {
       <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
       <td><b>${r.qFmt}</b></td>
       <td style="color:var(--tm)">${r.party||'—'}</td>
+      <td>${r.totalValue > 0 ? '<b style="color:var(--tx)">₹' + fmt(r.totalValue) + '</b>' : '<span style="color:var(--tm)">—</span>'}</td>
     </tr>`).join('');
 }
 
@@ -410,8 +411,8 @@ function renderSuthLedger() {
       <td>${meterStr}</td>
       <td><b>${r.qty.toFixed(3)} kg</b></td>
       <td>${r.party||'—'}</td>
-      <td>${r.ratePerKg>0?'₹'+fmt(r.ratePerKg):'—'}</td>
-      <td>${r.totalValue>0?'₹'+fmt(r.totalValue):'—'}</td>
+      <td>${r.ratePerKg>0?'₹'+fmt(r.ratePerKg) + (r.type==='out'?' <small style="color:var(--tm)">/m</small>':' <small style="color:var(--tm)">/kg</small>'):'—'}</td>
+      <td>${r.totalValue>0?'<b>₹'+fmt(r.totalValue)+'</b>':'—'}</td>
       <td><b style="color:${running>=0?'var(--suc)':'var(--dan)'}">${running.toFixed(3)} kg</b></td>
       <td><button onclick="showDeleteModal('${r.id}','${r.qty.toFixed(3)} kg','${r.type}')" class="del-btn">🗑</button></td>
     </tr>`;
