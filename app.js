@@ -279,9 +279,22 @@ async function refreshData(silent = false) {
     const res = _res;
     // Parse meters from old records (stored in notes as "12037 Mtr (@0.05874)")
     const parseMtrs = records => records.map(r => {
-      if (r.meters === 0 && r.type === 'out' && r.notes) {
-        const match = r.notes.match(/([\d.]+)\s*Mtr/i);
-        if (match) r.meters = parseFloat(match[1]) || 0;
+      if (r.type === 'out') {
+        // Parse meters and rate from old notes if missing
+        if (r.meters === 0 && r.notes) {
+          const match = r.notes.match(/([\d.]+)\s*Mtr/i);
+          if (match) r.meters = parseFloat(match[1]) || 0;
+        }
+        if (r.ratePerKg === 0 && r.notes) {
+          const rateMatch = r.notes.match(/@([\d.]+)/);
+          if (rateMatch) r.ratePerKg = parseFloat(rateMatch[1]) || 0;
+        }
+        
+        // Force recalculate Total Value based on Miter * Rate for ALL Suth Exits
+        // This fixes the 'alag price' issue where the old backend saved Qty * Rate
+        if (r.meters > 0 && r.ratePerKg > 0) {
+          r.totalValue = r.meters * r.ratePerKg;
+        }
       }
       return r;
     });
