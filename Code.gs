@@ -130,12 +130,10 @@ function addRecord(d) {
   const prefix = item === 'Suth' ? 'S' : 'D';
   const id     = prefix + (type === 'in' ? 'IN' : 'OUT') + '-' + Date.now();
 
-  // For Dhaga exit: amount entered IS the total.
-  // For Suth exit: rate is applied per meter.
-  // For others (Suth in, Dhaga in): rate is applied per kg/bundle.
-  const finalTotal = (item === 'Dhaga' && type === 'out') ? rate :
-                     (item === 'Suth'  && type === 'out') ? (meters * rate) :
-                     (qty * rate);
+  // Total Value calculation:
+  // Suth Exit  → meters * rate (rate per meter)
+  // All others → qty * rate (rate per bundle / per kg)
+  const finalTotal = (item === 'Suth' && type === 'out') ? (meters * rate) : (qty * rate);
 
   sheet.appendRow([
     id,

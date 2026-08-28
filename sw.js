@@ -1,4 +1,4 @@
-const CACHE_NAME = 'momin-textile-v9';
+const CACHE_NAME = 'momin-textile-v10';
 const ASSETS = [
   'index.html',
   'style.css',

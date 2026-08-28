@@ -510,74 +510,91 @@ async function submitSuthOut() {
 
 // ===== DHAGA LEDGER =====
 function renderDhagaLedger() {
-  setText('dsIn',    dhagaTotalIn.toFixed(0)   + ' Bndl');
-  setText('dsOut',   dhagaTotalOut.toFixed(0)  + ' Bndl');
-  setText('dsAvail', dhagaAvailable.toFixed(0) + ' Bndl');
+  setText('dsIn',    fmtQty(dhagaTotalIn)   + ' Bndl');
+  setText('dsOut',   fmtQty(dhagaTotalOut)  + ' Bndl');
+  setText('dsAvail', fmtQty(dhagaAvailable) + ' Bndl');
 
   const tbody = document.getElementById('dhagaTable');
   if (!tbody) return;
   if (!dhagaRecords.length) {
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tm)">No records yet</td></tr>';
     return;
   }
   let running = 0;
   const sorted = [...dhagaRecords].sort((a,b) => a.date.localeCompare(b.date));
   const rows = sorted.map(r => {
     running += r.type==='in' ? r.qty : -r.qty;
+    const rateStr  = r.ratePerKg > 0 ? '₹' + fmt(r.ratePerKg) : '—';
+    const valueStr = r.totalValue > 0 ? '<b>₹' + fmt(r.totalValue) + '</b>' : '—';
     return `<tr>
       <td style="white-space:nowrap">${r.date}</td>
       <td><span class="badge ${r.type==='in'?'bg':'br'}">${r.type==='in'?'⬆️ Aaya':'⬇️ Gaya'}</span></td>
-      <td><b>${r.qty.toFixed(0)} Bndl</b></td>
+      <td><b>${fmtQty(r.qty)} Bndl</b></td>
       <td>${r.party||'—'}</td>
-      <td>${r.totalValue>0?'₹'+fmt(r.totalValue):'—'}</td>
-      <td><b style="color:${running>=0?'var(--suc)':'var(--dan)'}">${running.toFixed(0)} Bndl</b></td>
-      <td><button onclick="showDeleteDhagaModal('${r.id}','${r.qty.toFixed(0)} Bundle','${r.type}')" class="del-btn">🗑</button></td>
+      <td>${rateStr}</td>
+      <td>${valueStr}</td>
+      <td><b style="color:${running>=0?'var(--suc)':'var(--dan)'}">${fmtQty(running)} Bndl</b></td>
+      <td><button onclick="showDeleteDhagaModal('${r.id}','${fmtQty(r.qty)} Bundle','${r.type}')" class="del-btn">🗑</button></td>
     </tr>`;
   });
   tbody.innerHTML = rows.reverse().join('');
 }
 
+// ===== DHAGA AUTO CALC =====
+function calcDhagaTotal(prefix) {
+  const qty  = parseFloat(document.getElementById(prefix + 'Qty')?.value)  || 0;
+  const rate = parseFloat(document.getElementById(prefix + 'Rate')?.value) || 0;
+  const totalEl = document.getElementById(prefix + 'Total');
+  if (totalEl) totalEl.value = qty && rate ? '₹' + fmt(qty * rate) : '';
+}
+
 // ===== DHAGA ENTRY =====
 async function submitDhagaIn() {
+  const qty  = parseFloat(document.getElementById('diQty').value) || 0;
+  const rate = parseFloat(document.getElementById('diRate').value) || 0;
   const d = {
-    date:  document.getElementById('diDate').value,
-    qty:   parseFloat(document.getElementById('diQty').value) || 0,
-    party: document.getElementById('diParty').value.trim(),
-    notes: document.getElementById('diNotes').value.trim()
+    date:      document.getElementById('diDate').value,
+    qty:       qty,
+    ratePerKg: rate,
+    party:     document.getElementById('diParty').value.trim(),
+    notes:     document.getElementById('diNotes').value.trim()
   };
+  if (!d.date) { toast('Date zaroor dalein', 'error'); return; }
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
   const btn = document.getElementById('btnDI');
   btn.textContent='Saving...'; btn.disabled=true;
   const res = await api('addRecord', { ...d, item:'Dhaga', type:'in' });
   btn.textContent='✅ Save Entry'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty} bundle aaya — saved!`, 'success');
-    ['diQty','diParty','diNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    toast(`✅ ${fmtQty(d.qty)} bundle aaya — saved!`, 'success');
+    ['diQty','diParty','diRate','diNotes','diTotal'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
   } else toast(res?.error || 'API error', 'error');
 }
 
 // ===== DHAGA EXIT =====
 async function submitDhagaOut() {
+  const qty  = parseFloat(document.getElementById('doQty').value) || 0;
+  const rate = parseFloat(document.getElementById('doRate').value) || 0;
   const d = {
     date:      document.getElementById('doDate').value,
-    qty:       parseFloat(document.getElementById('doQty').value) || 0,
+    qty:       qty,
+    ratePerKg: rate,
     party:     document.getElementById('doParty').value.trim(),
-    ratePerKg: parseFloat(document.getElementById('doRate').value) || 0,
     notes:     document.getElementById('doNotes').value.trim()
   };
   if (!d.date) { toast('Date zaroor dalein', 'error'); return; }
   if (!d.qty || d.qty <= 0) { toast('Quantity enter karein', 'error'); return; }
   if (d.qty > dhagaAvailable) {
-    toast(`❌ Available dhaga sirf ${dhagaAvailable.toFixed(0)} Bundle hai!`, 'error'); return;
+    toast(`❌ Available dhaga sirf ${fmtQty(dhagaAvailable)} Bundle hai!`, 'error'); return;
   }
   const btn = document.getElementById('btnDO');
   btn.textContent='Saving...'; btn.disabled=true;
   const res = await api('addRecord', { ...d, item:'Dhaga', type:'out' });
   btn.textContent='🔻 Save Exit'; btn.disabled=false;
   if (res && res.success) {
-    toast(`✅ ${d.qty} bundle dhaga gaya — saved!`, 'success');
-    ['doQty','doParty','doRate','doNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    toast(`✅ ${fmtQty(d.qty)} bundle dhaga gaya — saved!`, 'success');
+    ['doQty','doParty','doRate','doNotes','doTotal'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     refreshData();
   } else toast(res?.error || 'API error', 'error');
 }
@@ -806,6 +823,8 @@ function exportSuthCSV() {
 
 // ===== HELPERS =====
 function fmt(n) { return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+// Show decimal qty cleanly: 10 → "10", 1.5 → "1.5", 2.25 → "2.25"
+function fmtQty(n) { const v = parseFloat(n)||0; return v % 1 === 0 ? v.toFixed(0) : parseFloat(v.toFixed(2)).toString(); }
 function setText(id,v) { const e=document.getElementById(id); if(e) e.textContent=v; }
 function toast(msg, type='success') {
   const el=document.createElement('div');
